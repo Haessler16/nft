@@ -101,6 +101,30 @@ test.describe('catálogo', () => {
     expect(names.every((name) => name.toLowerCase().includes('golden'))).toBe(true)
   })
 
+  test('busca em tempo real faz debounce (um request por pausa, não por tecla)', async ({
+    page,
+  }) => {
+    await page.goto('/')
+
+    await page.getByRole('button', { name: 'Buscar NFTs' }).click()
+    const input = page.getByLabel('Buscar NFTs por nome, coleção ou categoria')
+    await input.focus()
+
+    // First keystroke: the debounce window (350 ms) has not elapsed, so the
+    // URL — and therefore the request — must still be untouched.
+    await input.press('g')
+    await page.waitForTimeout(200)
+    await expect(page).not.toHaveURL(/q=/)
+
+    // The remaining keys restart the timer: one pause, one navigation.
+    await input.pressSequentially('olden', { delay: 30 })
+
+    await expect(page).toHaveURL(/q=golden/)
+    const names = await cardNames(page)
+    expect(names.length).toBeGreaterThan(0)
+    expect(names.every((name) => name.toLowerCase().includes('golden'))).toBe(true)
+  })
+
   test('resultado vazio explica o estado e limpar filtros recupera o catálogo', async ({
     page,
   }) => {

@@ -1,5 +1,6 @@
-import type { CartItem } from '@/features/cart/api/contracts'
+import type { CartEntry } from '@/features/cart/api/contracts'
 import type { NftDetail } from '@/features/nfts/api/contracts'
+import { percentOf, sumEth } from '@/lib/money'
 import { buildNfts } from '@/mocks/fixtures/nfts'
 import { USERS, type UserFixture } from '@/mocks/fixtures/users'
 import { env } from '@/lib/env'
@@ -34,7 +35,7 @@ export interface DbState {
   /** Favorites per user id. */
   favorites: Record<string, string[]>
   /** Carts per scope (`guest` or a user id). */
-  carts: Record<string, CartItem[]>
+  carts: Record<string, CartEntry[]>
   /** Active deterministic scenario (docs/PLAN.md → Seção 2). */
   scenario: string
 }
@@ -42,9 +43,30 @@ export interface DbState {
 const STORAGE_KEY = 'kurio:db:v3'
 const SCHEMA_VERSION = 3
 
+/**
+ * Scenarios that change **data** (docs/PLAN.md → Seção 2) rebuild the catalog
+ * from the seed and transform it afterwards, so flipping a scenario twice never
+ * compounds (`price-changed` is always +10%, never +21%) and switching back to
+ * `default` restores the original prices. Network-only scenarios (`flaky`,
+ * `session-expired`) live inside the handlers and leave the data untouched.
+ */
+const applyScenarioData = (scenario: string): NftDetail[] => {
+  const seed = buildNfts()
+  if (scenario === 'price-changed') {
+    return seed.map((nft) => ({
+      ...nft,
+      priceEth: sumEth([nft.priceEth, percentOf(nft.priceEth, 10)]),
+    }))
+  }
+  if (scenario === 'sold-out') {
+    return seed.map((nft) => ({ ...nft, available: 0 }))
+  }
+  return seed
+}
+
 const createState = (): DbState => ({
   version: SCHEMA_VERSION,
-  nfts: buildNfts(),
+  nfts: applyScenarioData(env.mockScenario),
   users: [...USERS],
   session: null,
   favorites: {},
@@ -104,7 +126,9 @@ export const db = {
     return state.scenario
   },
   setScenario(scenario: string): DbState {
-    return update(() => ({ scenario }))
+    // Data scenarios are re-derived from the seed here, so the catalog, the
+    // detail screen, the cart and the quote all agree on the same numbers.
+    return update(() => ({ scenario, nfts: applyScenarioData(scenario) }))
   },
 
   /** Session ------------------------------------------------------------- */
@@ -155,10 +179,10 @@ export const db = {
   },
 
   /** Cart ----------------------------------------------------------------- */
-  cartFor(scope: string): CartItem[] {
+  cartFor(scope: string): CartEntry[] {
     return state.carts[scope] ?? []
   },
-  setCartFor(scope: string, items: CartItem[]): DbState {
+  setCartFor(scope: string, items: CartEntry[]): DbState {
     return update(() => ({ carts: { ...state.carts, [scope]: items } }))
   },
 

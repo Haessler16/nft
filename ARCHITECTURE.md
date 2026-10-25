@@ -69,6 +69,12 @@ escrever defaults e uma URL adulterada degrada para um catálogo válido.
 o resultado para o contrato REST, e a query key usa exatamente esse objeto.
 
 - filtros (`categories`, `networks`, `min`, `max`) sempre voltam para `page=1`;
+- a busca é **ao vivo com debounce** (350 ms,
+  [src/features/nfts/hooks.ts](src/features/nfts/hooks.ts)): cada pausa do
+  digitar vira uma navegação (`replace` dentro do catálogo para não poluir o
+  histórico, `push` no primeiro salto de outra tela), e Enter/botão descarta o
+  timer para navegar na hora. Como o request em voo é cancelado por `signal` e
+  a lista usa `keepPreviousData`, digitar rápido nunca pinta grade fora de ordem;
 - `pruneCatalogSearch` remove filtros vazios antes de escrever a URL, evitando
   `?q=&categories=[]&min=null`;
 - abas são visões, não filtros: `todos` respeita `sort`, `novos` fixa
@@ -116,6 +122,8 @@ o resultado para o contrato REST, e a query key usa exatamente esse objeto.
 | POST | `/api/cart/items` | adiciona · `422`/`409` | `handlers/cart.ts` | `cart` |
 | PATCH | `/api/cart/items/:nftId` | altera quantidade · `422`/`409` | `handlers/cart.ts` | `cart` |
 | DELETE | `/api/cart/items/:nftId` | remove | `handlers/cart.ts` | `cart` |
+| GET | `/api/quote` | `QuoteResponse` (`items=nft:qtd,…`, `coupon`) · `422`/`404` | `handlers/quote.ts` | `cart` |
+| POST | `/api/coupons/validate` | `{ code }` → `CouponValidation` · `422` (`fields.coupon`) | `handlers/quote.ts` | `cart` |
 
 Erros seguem sempre o envelope `{ error: { code, message, fields? } }`
 (`handlers/envelope.ts`). Cotação, pedidos, perfil e carteiras chegam com as
@@ -162,6 +170,9 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
   apenas para quantidades, que são inteiras.
 - A cotação da API (`/quote`) é a única fonte de verdade de subtotal, desconto, taxa de
   rede e total. O cliente não recalcula preços para exibir — apenas formata.
+- O desconto é um percentual inteiro vindo do cupom (`percentOf`, mesmo módulo);
+  a taxa de rede do mock é `0.0005 ETH` por unidade (`NETWORK_FEE_PER_UNIT`,
+  definido no contrato e cobrado **pelo handler**, nunca pela tela).
 - Recibo é um snapshot do pedido: mudanças posteriores no catálogo não o alteram.
 
 ## 7. Mocks (MSW) e realtime simulado
@@ -180,10 +191,14 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
 - Cenários determinísticos selecionáveis por `VITE_MOCK_SCENARIO` (boot) ou por
   `POST /api/__mock/scenario` (runtime, sem reload), aplicados no handler — nunca
   com código alternativo na UI. Implementados e documentados no README:
-  `default`, `flaky` (mutações de favorito com `503`, exercita rollback) e
-  `session-expired` (`GET /api/session` revoga a sessão ativa). Os demais
-  (`slow`, `empty`, `conflict`, `coupon-invalid`, `price-changed`, `sold-out`,
-  `order-timeout`, `payment-declined`) chegam com as seções que os consomem.
+  `default`, `flaky` (mutações de favorito com `503`, exercita rollback),
+  `session-expired` (`GET /api/session` revoga a sessão ativa) e os dois que
+  alteram **os dados**: `price-changed` (preços +10%) e `sold-out` (nenhuma
+  unidade). Esses dois são rederivados da semente a cada troca
+  (`applyScenarioData` no `db.ts`), então alterná-los nunca acumula efeito e
+  catálogo, detalhe, carrinho e cotação mostram sempre os mesmos números.
+  Os demais (`slow`, `empty`, `conflict`, `coupon-invalid`, `order-timeout`,
+  `payment-declined`) chegam com as seções que os consomem.
 - Eventos: `@mswjs/socket.io-binding` no mesmo worker entrega os eventos ao
   `socket.io-client` real. Limitações a documentar na seção 10: exige service worker
   (por isso a demo é servida por HTTPS/HTTP local), a primeira navegação só passa a ser
@@ -225,6 +240,27 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
 - **Troca de usuário:** logout/removeQueries derruba todo o escopo privado
   (`cart`, `favorites`, `orders`, …) antes de carregar o escopo novo, então
   usuário B nunca herda favoritos ou carrinho de A (cubierto por E2E).
+- **Tela de carrinho (implementada):** duas leituras com papéis separados —
+  `GET /api/cart` devolve as linhas (imagem, nome, edição, `available`) e nunca
+  um preço; `GET /api/quote` devolve todo o dinheiro do snapshot explícito de
+  itens (`items=nft:qtd,…`). As queries esperam a sessão assentar
+  (`enabled: !isLoading`) para não buscar o carrinho do escopo errado nem
+  refazer o mesmo request.
+- **Chave da cotação:** `['quote', escopo, fingerprint]`, com
+  `fingerprint = itens ordenados + cupom`
+  ([src/features/cart/fingerprint.ts](src/features/cart/fingerprint.ts)). Mudar
+  quantidade ou aplicar cupom gera uma *nova* entrada (fetch fresco) sem
+  invalidar a atual — os números antigos ficam na tela até os novos chegarem.
+- **Cupom na URL:** `POST /api/coupons/validate` confirma o código **antes** de
+  `?coupon=` entrar no search; só um código aprovado troca a chave da cotação.
+  Um endereço editado à mão faz o `GET /api/quote` responder `422` com
+  `fields.coupon`, e a tela mostra o erro no painel do resumo mantendo as linhas
+  (que vêm de outro request) — degradação em vez de tela quebrada.
+- **Avisos da cotação:** `alerts: ["price-changed" | "availability-changed"]`
+  são dados do servidor; a tela decide o texto e o tom (banner padrão para
+  preço, `destructive` para disponibilidade). Hoje os produzem os cenários
+  `price-changed`/`sold-out`; a entrega *em tempo real* chega com
+  `nft.updated` (Seção 10).
 
 ## 10. Interface, responsividade e acessibilidade
 

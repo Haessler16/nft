@@ -5,6 +5,7 @@ import { cartHandlers } from '@/mocks/handlers/cart'
 import { errorEnvelope } from '@/mocks/handlers/envelope'
 import { favoriteHandlers } from '@/mocks/handlers/favorites'
 import { nftHandlers } from '@/mocks/handlers/nfts'
+import { quoteHandlers } from '@/mocks/handlers/quote'
 import { sessionHandlers } from '@/mocks/handlers/session'
 
 /**
@@ -54,5 +55,6 @@ export const handlers = [
   ...sessionHandlers,
   ...favoriteHandlers,
   ...cartHandlers,
+  ...quoteHandlers,
   ...nftHandlers,
 ]

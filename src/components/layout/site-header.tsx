@@ -9,10 +9,11 @@ import {
   UserRoundIcon,
   WalletIcon,
 } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 
 import { useSession } from '@/app/session/hooks'
 import { Button } from '@/components/ui/button'
+import { useCartCount } from '@/features/cart/hooks'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { pruneCatalogSearch } from '@/features/nfts/catalog-search'
 import { Input } from '@/components/ui/input'
 import {
   Sheet,
@@ -31,6 +31,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { useCatalogSearch } from '@/features/nfts/hooks'
 
 /** Destinations that exist outside this delivery (editorial/support). */
 const OUT_OF_SCOPE = ['Criadores', 'Aprender'] as const
@@ -53,18 +54,9 @@ export const SiteHeader = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, isAuthenticated, logout } = useSession()
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [term, setTerm] = useState('')
+  const search = useCatalogSearch()
+  const cartCount = useCartCount()
   const [menuOpen, setMenuOpen] = useState(false)
-
-  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    void navigate({
-      to: '/',
-      search: (previous) => pruneCatalogSearch({ ...previous, q: term.trim(), page: 1 }),
-    })
-    setSearchOpen(false)
-  }
 
   /** Logout clears the private cache (hook) and leaves any private screen. */
   const handleLogout = () => {
@@ -113,17 +105,40 @@ export const SiteHeader = () => {
             variant="ghost"
             size="icon"
             className="text-foreground/85"
-            aria-label={searchOpen ? 'Fechar busca' : 'Buscar NFTs'}
-            aria-expanded={searchOpen}
+            aria-label={search.open ? 'Fechar busca' : 'Buscar NFTs'}
+            aria-expanded={search.open}
             aria-controls="busca-catalogo"
-            onClick={() => setSearchOpen((open) => !open)}
+            onClick={search.toggle}
           >
             <SearchIcon aria-hidden />
           </Button>
 
+          {/*
+            Badge mirrors the shared cart cache: adding a piece in the detail
+            (same scope, same key) updates this counter in the same commit,
+            without a second request. Hidden while the count is zero so the
+            icon never advertises an empty cart.
+          */}
           <Button asChild variant="ghost" size="icon" className="relative text-foreground/85">
-            <Link to="/cart" aria-label="Carrinho">
+            <Link
+              to="/cart"
+              data-testid="header-carrinho"
+              aria-label={
+                cartCount > 0
+                  ? `Carrinho, ${cartCount} ${cartCount === 1 ? 'item' : 'itens'}`
+                  : 'Carrinho'
+              }
+            >
               <ShoppingBagIcon aria-hidden />
+              {cartCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  data-testid="header-carrinho-badge"
+                  className="absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-4 font-bold text-primary-foreground"
+                >
+                  {cartCount}
+                </span>
+              ) : null}
             </Link>
           </Button>
 
@@ -256,11 +271,11 @@ export const SiteHeader = () => {
         </div>
       </div>
 
-      {searchOpen ? (
+      {search.open ? (
         <form
           id="busca-catalogo"
           role="search"
-          onSubmit={submitSearch}
+          onSubmit={search.submit}
           className="shell flex items-center gap-2 pb-3"
         >
           <label htmlFor="busca-input" className="sr-only">
@@ -269,8 +284,8 @@ export const SiteHeader = () => {
           <Input
             id="busca-input"
             autoFocus
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
+            value={search.term}
+            onChange={(event) => search.changeTerm(event.target.value)}
             placeholder="Buscar por nome, coleção ou categoria…"
             className="h-9 max-w-md"
           />

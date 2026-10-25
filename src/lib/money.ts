@@ -30,6 +30,10 @@ export const multiplyEth = (price: string, quantity: number): string => {
   return dec(price).times(quantity).toFixed()
 }
 
+/** Whole-percent slice of a value (`percentOf('2.58', 10)` → `'0.258'`). */
+export const percentOf = (value: string, percent: number): string =>
+  dec(value).times(percent).div(100).toFixed()
+
 export const subtractEth = (a: string, b: string): string => dec(a).minus(dec(b)).toFixed()
 
 export const isGreaterThan = (a: string, b: string): boolean => dec(a).greaterThan(dec(b))

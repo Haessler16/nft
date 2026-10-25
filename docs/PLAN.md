@@ -42,7 +42,8 @@ e no shell que todas as telas compartilham.
 - [x] `SiteHeader` (desktop + menu mobile em Sheet + busca), `SiteFooter`
 - [x] `NftCardSkeleton` + `NftGridSkeleton` com shimmer e `prefers-reduced-motion`
 - [x] `DetailSkeleton` (chegou com a seção 6)
-- [ ] `SummarySkeleton` (chega com a seção 7)
+- [x] `SummarySkeleton` (chegou com a seção 7,
+      `src/features/cart/components/summary-skeleton.tsx`)
 - [x] Breadcrumb compartilhado (`src/components/layout/breadcrumb.tsx`, usado no
       detalhe; carrinho e checkout entram na mesma trilha nas seções 7–8)
 - [x] Estados de vazio e erro no catálogo, com retry e `aria-live` de atualização
@@ -65,20 +66,25 @@ desenvolvimento, demonstração e testes.
       artwork local) — `src/mocks/fixtures/nfts.ts`
 - [x] Fixtures de usuários: 2 contas demo determinísticas derivadas das
       credenciais — `src/mocks/fixtures/users.ts`
-- [ ] Fixtures restantes: cupons válido/expirado, carteiras, pedidos
+- [x] Fixtures de cupons (2 válidos + 1 expirado) — `src/mocks/fixtures/coupons.ts`
+- [ ] Fixtures restantes: carteiras, pedidos
 - [x] `src/mocks/db.ts`: estado único persistido em `localStorage` + `resetDatabase()`
       exposto em `POST /api/__mock/reset` (usado pelos testes)
 - [x] Handlers de catálogo: `GET /api/nfts` (busca/filtros/ordenação/paginação/facets)
       e `GET /api/nfts/:nftId` (404 do contrato)
 - [x] Handlers de sessão/conta (`GET /api/session`, login, registro, logout),
       favoritos e carrinho
-- [ ] Handlers REST restantes: cotação, pedidos, perfil, carteiras
+- [x] Handlers REST restantes: cotação (`GET /api/quote`) e cupons
+      (`POST /api/coupons/validate`) — `handlers/quote.ts`
+- [ ] Handlers REST restantes: pedidos, perfil, carteiras
 - [x] Envelope de erro único (`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`,
       `NOT_FOUND`, `CONFLICT`, `UNAVAILABLE`, `INTERNAL`) em `handlers/envelope.ts`
 - [ ] Cenários determinísticos selecionáveis por env/console:
       `default`, `slow`, `empty`, `flaky`, `session-expired`, `conflict`,
       `coupon-invalid`, `price-changed`, `sold-out`, `order-timeout`,
-      `payment-declined` (prontos: `default`, `flaky`, `session-expired`)
+      `payment-declined` (prontos: `default`, `flaky`, `session-expired`,
+      `price-changed`, `sold-out` — os dois últimos alteram os dados no `db`,
+      então catálogo, detalhe, carrinho e cotação concordam entre si)
 - [ ] Latência variável e respostas fora de ordem; falhas de conexão e 5xx
 - [x] Reset de cenário sem reload (`POST /api/__mock/scenario`) + documentação dos
       cenários implementados no README
@@ -146,7 +152,8 @@ carrinho; dois usuários nunca compartilham favoritos/carrinho/pedidos.
 - [x] Estados: skeleton, vazio, erro com retry e atualização em background
 - [x] Cancelamento por `signal` e `keepPreviousData` (sem respostas fora de ordem)
 - [x] Filtros em disclosure no mobile (o frame mobile não define drawer)
-- [ ] Busca com debounce em tempo real (hoje a busca é por submit, sem request por tecla)
+- [x] Busca com debounce em tempo real (`useCatalogSearch`, 350 ms: um request
+      por pausa, Enter/Botão descarta o timer e navega na hora)
 
 **Aceite:** combinação de filtros + ordenação + página recarregável e compartilhável;
 requisição reflete exatamente os parâmetros da URL.
@@ -175,15 +182,21 @@ estado anterior com feedback acessível.
 
 ## Seção 7 — Carrinho e cotação
 
-- [ ] Estado do carrinho por usuário + carrinho de visitante preservado no login
+- [x] Estado do carrinho por usuário + carrinho de visitante preservado no login
       (merge determinístico, sem duplicar item)
-- [ ] Adicionar/alterar quantidade/remover respeitando disponibilidade por NFT
-- [ ] Cupom: aplicar, remover, inválido/expirado
-- [ ] Resumo (subtotal, desconto, taxa de rede, total) vindo da cotação da API
-- [ ] Aritmética em ETH com `decimal.js` (strings decimais, sem float)
-- [ ] Carrinho sobrevive a refresh; badge do header sincronizado
-- [ ] Preço/disponibilidade alterados durante a sessão atualizam o resumo e sinalizam
-      cotação desatualizada
+- [x] Adicionar/alterar quantidade/remover respeitando disponibilidade por NFT
+      (stepper limitado por `available`; handler responde 409)
+- [x] Cupom: aplicar, remover, inválido/expirado (`POST /api/coupons/validate`
+      antes de escrever `?coupon=` na URL)
+- [x] Resumo (subtotal, desconto, taxa de rede, total) vindo da cotação da API
+      (`GET /api/quote` com snapshot explícito dos itens)
+- [x] Aritmética em ETH com `decimal.js` (strings decimais, sem float)
+      (`src/lib/money.ts`, inclusive `percentOf` para o desconto)
+- [x] Carrinho sobrevive a refresh; badge do header sincronizado
+      (cache por escopo de sessão, `useCartCount` no cabeçalho)
+- [x] Preço/disponibilidade alterados durante a sessão atualizam o resumo e sinalizam
+      cotação desatualizada (cenários `price-changed` e `sold-out` → `alerts` na
+      cotação; transporte por socket chega na seção 10)
 
 **Aceite:** nenhum total calculado localmente como fonte de verdade; item esgotado
 não pode ser comprado.

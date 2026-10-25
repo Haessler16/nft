@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 
-import type { CartItem, CartResponse } from '@/features/cart/api/contracts'
+import type { CartEntry, CartResponse } from '@/features/cart/api/contracts'
 import { db, GUEST_SCOPE } from '@/mocks/db'
 import { errorEnvelope, notFound } from '@/mocks/handlers/envelope'
 
@@ -18,10 +18,27 @@ import { errorEnvelope, notFound } from '@/mocks/handlers/envelope'
 
 const scope = (): string => db.session?.userId ?? GUEST_SCOPE
 
-const cartBody = (items: CartItem[]): CartResponse => ({
-  items,
-  count: items.reduce((total, item) => total + item.quantity, 0),
-})
+/**
+ * Stored entries are joined with the catalog at response time: the screen gets
+ * the artwork/edition/availability it needs to render a row, while prices stay
+ * out of the cart contract and come from `GET /api/quote`.
+ */
+const cartBody = (entries: CartEntry[]): CartResponse => {
+  const items = entries.map((entry) => {
+    const nft = db.nfts.find((candidate) => candidate.id === entry.nftId)
+    return {
+      ...entry,
+      name: nft?.name ?? 'Peça fora do catálogo',
+      imageUrl: nft?.imageUrl ?? '',
+      edition: nft?.edition ?? { number: 0, of: 0 },
+      available: nft?.available ?? 0,
+    }
+  })
+  return {
+    items,
+    count: items.reduce((total, item) => total + item.quantity, 0),
+  }
+}
 
 const respondCart = () => HttpResponse.json(cartBody(db.cartFor(scope())))
 

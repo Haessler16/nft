@@ -96,11 +96,11 @@ src/
     ui/           primitivas shadcn/ui adaptadas ao tema
   features/
     auth/         contratos, endpoints, mutations de sessão + credenciais demo
-    cart/         contratos, endpoints e mutations do carrinho
+    cart/         contratos, endpoints, queries, cotação, cupom e tela do carrinho
     favorites/    contratos, endpoints, queries e toggle otimista
-    nfts/         contratos, endpoints, queries, busca na URL e componentes do catálogo
+    nfts/         contratos, endpoints, queries, busca ao vivo na URL e componentes
   lib/            api (Axios + erros + tipos), query (client + keys + ensure), dinheiro, env
-  mocks/          MSW: db, fixtures (nfts, usuários), handlers
+  mocks/          MSW: db, fixtures (nfts, usuários, cupons), handlers
   routes/         rotas file-based (routeTree.gen.ts é gerado)
 public/nfts/      artwork extraído dos frames de design
 e2e/              testes Playwright
@@ -115,7 +115,7 @@ nft img/          frames originais do design (referência)
 | `/` | Início: destaque, catálogo, busca, filtros, ordenação, paginação | **implementada** |
 | `/nfts/$nftId` | Detalhe do NFT (galeria, quantidade, favoritos, coleção) | **implementada** |
 | `/login`, `/register` | Login e cadastro (com `redirect` de retorno) | **implementada** |
-| `/cart` | Carrinho | placeholder |
+| `/cart` | Carrinho (itens, quantidade, cupom, resumo da cotação) | **implementada** |
 | `/checkout` | Pagamento | placeholder (**privada**) |
 | `/orders/$orderId` | Confirmação / recibo | placeholder (**privada**) |
 | `/account` → `/account/profile` | Perfil do colecionador | placeholder (**privada**) |
@@ -134,9 +134,31 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
 
 - `q`, `categories[]`, `networks[]`, `min`, `max`, `sort`, `tab`, `page` compõem a
   requisição e a chave de cache; refresh e navegação pelo histórico preservam tudo.
+- A busca do cabeçalho é **em tempo real com debounce** (350 ms): digitar atualiza
+  `?q=` sem Enter e sem um request por tecla; Enter ou o botão "Buscar" aplica na
+  hora. Digitar dentro do catálogo substitui a entrada no histórico (sem poluir o
+  "voltar"), enquanto o primeiro salto de outra tela preserva o retorno.
 - Filtros são combináveis e qualquer mudança de filtro volta para `page=1`.
 - Abas: `todos` (ordenação escolhida), `novos` (listados recentemente) e `alta`
   (maior preço) — proxies documentados em `ARCHITECTURE.md`.
+
+## Carrinho e cotação
+
+- `/cart?coupon=KURIO10` — o cupom aplicado mora na URL: refresh, "voltar" e
+  link compartilhado reproduzem a mesma cotação. O código é confirmado em
+  `POST /api/coupons/validate` **antes** de entrar na URL (inválido/expirado
+  aponta o campo e não substitui um resumo que já estava certo).
+- Duas leituras, dois papéis: `GET /api/cart` traz as linhas (imagem, nome,
+  edição, disponibilidade) e `GET /api/quote` traz todo o dinheiro (unitário,
+  linha, subtotal, desconto, taxa de rede, total) do **snapshot explícito** de
+  itens — nenhum total é calculado na tela.
+- A chave da cotação é `['quote', escopo, fingerprint(itens+cupom)]`
+  ([src/features/cart/fingerprint.ts](src/features/cart/fingerprint.ts)):
+  mudar a quantidade gera uma nova entrada (fetch novo) sem invalidar a atual,
+  então os números antigos ficam na tela até os novos chegarem.
+- O badge do cabeçalho compartilha o cache do carrinho (`useCartCount`), por
+  escopo de sessão: o carrinho do visitante é mesclado na conta no login e o
+  contador acompanha a troca.
 
 ## Dados simulados
 
@@ -147,7 +169,8 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
 - Handlers atuais: catálogo (`GET /api/nfts`, `GET /api/nfts/:nftId`), sessão
   (`GET /api/session`, `POST /api/auth/{login,register,logout}`), favoritos
   (`GET|PUT|DELETE /api/favorites[/:nftId]`), carrinho (`GET /api/cart`,
-  `POST /api/cart/items`, `PATCH|DELETE /api/cart/items/:nftId`) e controle dos
+  `POST /api/cart/items`, `PATCH|DELETE /api/cart/items/:nftId`), cotação e
+  cupons (`GET /api/quote`, `POST /api/coupons/validate`) e controle dos
   mocks (`GET /api/health`, `POST /api/__mock/reset`, `POST /api/__mock/scenario`).
   A tabela completa está em [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Cenários** (`VITE_MOCK_SCENARIO` no boot, ou `POST /api/__mock/scenario`
@@ -158,6 +181,11 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
   | `default` | seed determinístico, respostas normais |
   | `flaky` | mutações de favorito respondem `503 UNAVAILABLE` (testa rollback) |
   | `session-expired` | `GET /api/session` revoga a sessão ativa com `401` (guarda leva ao login preservando o destino) |
+  | `price-changed` | preços do catálogo +10% a partir do seed e a cotação devolve `alerts: ["price-changed"]` (banner no carrinho) |
+  | `sold-out` | nenhuma unidade disponível: quantidade bloqueada, cotação devolve `alerts: ["availability-changed"]` |
+
+  Os dois últimos alteram **os dados** no `db` (semente + transformação), então
+  catálogo, detalhe, carrinho e cotação sempre mostram os mesmos números.
 
 ## Assets e design
 

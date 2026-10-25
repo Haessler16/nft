@@ -1,7 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import type { CartResponse } from '@/features/cart/api/contracts'
-import { addToCart, removeCartItem, updateCartItem } from '@/features/cart/api/endpoints'
+import {
+  addToCart,
+  removeCartItem,
+  updateCartItem,
+  validateCoupon,
+} from '@/features/cart/api/endpoints'
 import { queryKeys, type UserScope } from '@/lib/query/keys'
 
 export interface CartItemInput {
@@ -44,3 +49,12 @@ export const useCartMutations = (scope: UserScope) => {
 
   return { addItem, updateItem, removeItem }
 }
+
+/**
+ * Coupon check (docs/PLAN.md → Seção 7).
+ *
+ * Runs *before* the code reaches the URL: a `422` renders on the field while the
+ * current summary (priced without the bad coupon) stays untouched. Success
+ * hands the normalized code to the route, which is what re-keys the quote.
+ */
+export const useValidateCoupon = () => useMutation({ mutationFn: validateCoupon })
