@@ -51,8 +51,30 @@ Camadas e regras de dependência:
   shell, para que o cabeçalho e a navegação continuem disponíveis.
 - Contexto do router carrega `queryClient` ([src/app/router-context.ts](src/app/router-context.ts)),
   permitindo `ensureQueryData` em loaders com o mesmo cache dos componentes.
-- Fluxos privados (`/checkout`, `/account/*`, `/orders/*`) serão protegidos em
-  `beforeLoad`, redirecionando ao login com `redirect` no search param.
+- Fluxos privados (`/checkout`, `/account/*`, `/orders/*`) são protegidos em
+  `beforeLoad` ([src/app/guards.ts](src/app/guards.ts)): a sessão é lida com
+  `ensureQueryData(..., revalidateIfStale)`, `401` redireciona para
+  `/login?redirect=<href atual>` e qualquer outra falha cai no error boundary da
+  rota. O wrapper estável contra o `CancelledError` do StrictMode vive em
+  [src/lib/query/ensure.ts](src/lib/query/ensure.ts) e é usado por guardas e
+  loaders imperativos.
+
+### Estado do catálogo
+
+`/` declara `validateSearch` com o schema de
+[catalog-search.ts](src/features/nfts/catalog-search.ts). Todas as chaves são
+opcionais com fallback determinístico, então um link para `/` não precisa
+escrever defaults e uma URL adulterada degrada para um catálogo válido.
+`resolveCatalogSearch` aplica os defaults uma única vez; `toNftListParams` converte
+o resultado para o contrato REST, e a query key usa exatamente esse objeto.
+
+- filtros (`categories`, `networks`, `min`, `max`) sempre voltam para `page=1`;
+- `pruneCatalogSearch` remove filtros vazios antes de escrever a URL, evitando
+  `?q=&categories=[]&min=null`;
+- abas são visões, não filtros: `todos` respeita `sort`, `novos` fixa
+  `sort=recent` e `alta` fixa `sort=price-desc` (é o sinal de demanda que o mock
+  expõe). Mudar a aba reinicia a página; escolher uma ordenação volta a aba para
+  `todos`.
 
 ## 4. Transporte HTTP e contrato de erro
 
@@ -73,6 +95,31 @@ Camadas e regras de dependência:
   definitivo; `fields` alimenta mensagens por campo nos formulários.
 - Cancelamento: toda função de endpoint aceita `signal` e o Query cancela a query
   quando a chave muda ou o componente desmonta.
+
+### Tabela de endpoints (parcial — cresce a cada seção do plano)
+
+| Método | Caminho | Contrato | Handler MSW | Feature |
+| --- | --- | --- | --- | --- |
+| GET | `/api/health` | `{ status, mocked }` | `handlers/index.ts` | controle |
+| POST | `/api/__mock/reset` | — | `handlers/index.ts` | controle |
+| POST | `/api/__mock/scenario` | `{ scenario }` | `handlers/index.ts` | controle |
+| GET | `/api/nfts` | `Paginated<NftListItem>` + facets | `handlers/nfts.ts` | `nfts` |
+| GET | `/api/nfts/:nftId` | `NftDetail` · `404` | `handlers/nfts.ts` | `nfts` |
+| GET | `/api/session` | `SessionResponse` · `401` | `handlers/session.ts` | `auth` |
+| POST | `/api/auth/login` | `LoginInput` → `SessionResponse` · `401`/`422` | `handlers/session.ts` | `auth` |
+| POST | `/api/auth/register` | `RegisterInput` → `SessionResponse` · `409`/`422` | `handlers/session.ts` | `auth` |
+| POST | `/api/auth/logout` | `204` | `handlers/session.ts` | `auth` |
+| GET | `/api/favorites` | `FavoritesResponse` · `401` | `handlers/favorites.ts` | `favorites` |
+| PUT | `/api/favorites/:nftId` | favorita · `503` no cenário `flaky` | `handlers/favorites.ts` | `favorites` |
+| DELETE | `/api/favorites/:nftId` | remove · `503` no cenário `flaky` | `handlers/favorites.ts` | `favorites` |
+| GET | `/api/cart` | `CartResponse` (escopo visitante/usuário) | `handlers/cart.ts` | `cart` |
+| POST | `/api/cart/items` | adiciona · `422`/`409` | `handlers/cart.ts` | `cart` |
+| PATCH | `/api/cart/items/:nftId` | altera quantidade · `422`/`409` | `handlers/cart.ts` | `cart` |
+| DELETE | `/api/cart/items/:nftId` | remove | `handlers/cart.ts` | `cart` |
+
+Erros seguem sempre o envelope `{ error: { code, message, fields? } }`
+(`handlers/envelope.ts`). Cotação, pedidos, perfil e carteiras chegam com as
+Seções 7–11.
 
 ## 5. Estado remoto: cache, retries e invalidação
 
@@ -97,9 +144,16 @@ Invalidação: mutations invalidam somente as chaves afetadas (ex.: adicionar ao
 carrinho → `cart` + `quote`); eventos de socket atualizam o cache por `setQueryData`
 com verificação de versão e disparam invalidação pontual quando o payload é parcial.
 
-Atualização otimista obrigatória: favoritar (seção 6) — `onMutate` grava o estado
-anterior, aplica o toggle, `onError` faz rollback e mostra feedback acessível,
-`onSettled` reconcilia com a resposta do servidor.
+Atualização otimista obrigatória: favoritar (Seção 6) — `onMutate` cancela
+refetch em voo, grava o estado anterior e aplica o toggle, `onError` faz rollback
+e mostra feedback acessível (toast + região `aria-live`), `onSettled` reconcilia
+com a resposta do servidor.
+
+Aguardos imperativos em loaders e guardas passam por
+[src/lib/query/ensure.ts](src/lib/query/ensure.ts): o React StrictMode do
+desenvolvimento cancela o fetch quando o último observador desmonta e devolve um
+`CancelledError` que abortaria a navegação; o wrapper repassa as mesmas opções
+uma vez e os erros reais (401/404/rede) são propagados intactos.
 
 ## 6. Dinheiro
 
@@ -112,6 +166,10 @@ anterior, aplica o toggle, `onError` faz rollback e mostra feedback acessível,
 
 ## 7. Mocks (MSW) e realtime simulado
 
+- Estado único em [src/mocks/db.ts](src/mocks/db.ts): seed determinístico de 30
+  NFTs (10 peças × 3 séries, 9 categorias, 3 redes, 5 páginas de 6), persistido em
+  `localStorage` e restaurável por `POST /api/__mock/reset` — usado pelo botão de
+  demo e pelo `beforeEach` dos testes E2E.
 - Serviço Worker em `public/mockServiceWorker.js`, iniciado por
   [src/mocks/index.ts](src/mocks/index.ts) somente quando `VITE_ENABLE_MOCKS=true`,
   antes do primeiro render; o worker é importado dinamicamente para não entrar no
@@ -119,9 +177,13 @@ anterior, aplica o toggle, `onError` faz rollback e mostra feedback acessível,
 - Handlers compartilham os tipos de `contracts.ts` com a aplicação; o estado simulado
   é único entre catálogo, favoritos, carrinho, perfil, carteiras e pedidos, persistido
   em `localStorage` e restaurável por `resetDatabase()`.
-- Cenários determinísticos (latência, 4xx/5xx, sessão expirada, conflito, cupom
-  inválido, preço alterado, esgotado, timeout de pedido, pagamento recusado) são
-  aplicados por configuração, sem código alternativo na UI.
+- Cenários determinísticos selecionáveis por `VITE_MOCK_SCENARIO` (boot) ou por
+  `POST /api/__mock/scenario` (runtime, sem reload), aplicados no handler — nunca
+  com código alternativo na UI. Implementados e documentados no README:
+  `default`, `flaky` (mutações de favorito com `503`, exercita rollback) e
+  `session-expired` (`GET /api/session` revoga a sessão ativa). Os demais
+  (`slow`, `empty`, `conflict`, `coupon-invalid`, `price-changed`, `sold-out`,
+  `order-timeout`, `payment-declined`) chegam com as seções que os consomem.
 - Eventos: `@mswjs/socket.io-binding` no mesmo worker entrega os eventos ao
   `socket.io-client` real. Limitações a documentar na seção 10: exige service worker
   (por isso a demo é servida por HTTPS/HTTP local), a primeira navegação só passa a ser
@@ -142,16 +204,27 @@ anterior, aplica o toggle, `onError` faz rollback e mostra feedback acessível,
   eventos de uma sessão anterior não podem atualizar outro usuário.
 - Pedido confirmado/recusado é terminal; a UI deixa de reagir a eventos daquele id.
 
-## 9. Sessão e carrinho (decisões a fechar nas seções 4 e 7)
+## 9. Sessão e carrinho (Seções 4 e 7)
 
-- Sessão: cookie `httpOnly`-simulado não é possível no MSW; a sessão será um cookie de
-  fixture + `GET /api/session` como fonte de verdade, com o estado em cache do Query
-  (`['session']`). Nada sensível em `localStorage`.
-- Expiração (401) durante navegação: limpa sessão, guarda o destino atual e leva ao
-  login; durante o checkout, o rascunho do pedido é preservado para retomada.
-- Carrinho de visitante: chave `cart:guest`; no login, um `POST /cart/merge` combina
-  com o carrinho do usuário (quantidade somada limitada à disponibilidade) e o escopo
-  de visitante é descartado.
+- **Sessão (implementada):** o MSW não pode gravar cookie `httpOnly`, então a
+  sessão é um estado `{ userId, createdAt }` dentro do db simulado e
+  `GET /api/session` é a fonte de verdade. No cliente, a query `['session']` é
+  servida pelo `SessionProvider` ([src/app/session/](src/app/session/provider.tsx)),
+  que expõe `session`, `isAuthenticated` e `scope` (id do usuário ou `guest`).
+  A aplicação não guarda token algum em `localStorage`; o que persiste lá é o db
+  do mock, para a sessão sobreviver a refresh.
+- **Expiração/401 durante navegação (implementada):** a guarda de `beforeLoad`
+  lê a sessão com revalidação, e um `401` (sessão ausente, revogada pelo cenário
+  `session-expired` ou usuário removido) redireciona para
+  `/login?redirect=<destino>` — o login devolve o usuário exatamente ao ponto
+  que estava. Durante o checkout o mesmo `redirect` preserva a rota de retomada.
+- **Carrinho de visitante:** chave de escopo `guest`; no login/cadastro o handler
+  mescla o carrinho do visitante no da conta (quantidade somada, limitada pela
+  disponibilidade) e descarta o escopo `guest` — feito dentro de
+  `POST /api/auth/login|register`, sem endpoint separado de merge.
+- **Troca de usuário:** logout/removeQueries derruba todo o escopo privado
+  (`cart`, `favorites`, `orders`, …) antes de carregar o escopo novo, então
+  usuário B nunca herda favoritos ou carrinho de A (cubierto por E2E).
 
 ## 10. Interface, responsividade e acessibilidade
 
@@ -164,11 +237,55 @@ anterior, aplica o toggle, `onError` faz rollback e mostra feedback acessível,
 - Foco visível global, skip link no root, foco preso em dialog/drawer (Radix), erros
   associados por `aria-describedby`, feedback de mutação e de evento em `aria-live`.
 
-## 11. Limitações e desvios conhecidos
+## 11. Design system e assets (KURIO)
+
+Identidade extraída dos frames em `nft img/`:
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `--background` | `#100806` | fundo da página |
+| `--card` / `--secondary` | `#1b120d` / `#251a13` | cards, filtros, modais |
+| `--surface-band` | `#241a13` | faixa de destaques do footer |
+| `--foreground` | `#f4ecd8` | texto principal |
+| `--muted-foreground` | `#b79c7c` | texto secundário |
+| `--primary` | `#df9b55` | ação, preço, foco |
+| `--border` / `--input` | `rgba(214,168,120,.16)` / `.26` | contornos |
+
+Tipografia: **Archivo Narrow** (display, caixa alta e tracking largo) e
+**Courier Prime** (toda a UI, incluindo textos corridos e preços) — ambas servidas
+localmente por `@fontsource`, sem CDN. O tema é dark-only, como no arquivo.
+
+Componentes shadcn/ui foram adaptados por tokens (raio 4px, botões mono bold,
+inputs escuros) em vez de sobrescritos por tela. Skeletons usam a utilidade
+`.skeleton-shimmer`, desligada em `prefers-reduced-motion`.
+
+### Assets e substituições
+
+- Os retratos de maior resolução que acompanharam o desafio foram usados apenas para
+  gerar os JPEGs servidos (`public/nfts/{emerald-ape,sage-nomad,neon-vessel,golden-beat}.jpg`,
+  640 px, q82, e a arte do hero em 900 px) e foram **removidos do repositório**: não
+  são referenciados pela aplicação e pesavam ~9 MB no build. A fonte continua sendo
+  os frames em `nft img/`.
+- Os demais retratos não vêm em arquivos separados: foram recortados dos próprios
+  frames (1440 px) e salvos em `public/nfts/`, nomeados por personagem
+  (`cosmic-bloom`, `violet-nomad`, …).
+- Ícones de redes sociais: o conjunto `lucide-react` não distribui marcas, então o
+  rodapé usa glifos rotulados, sem link (perfis não fazem parte da entrega).
+- Imagens editoriais do “Diário da Cunhagem” reutilizam o mesmo artwork; são
+  conteúdo estático e não têm link “Ler mais”, porque páginas editoriais estão
+  fora do escopo.
+- Imagens têm `width`/`height` explícitos e `loading="lazy"` (exceto o hero, com
+  `fetchPriority="high"`) para evitar CLS e acelerar o LCP.
+
+## 12. Limitações e desvios conhecidos
 
 - Integrações reais de blockchain, carteira e pagamento estão fora do escopo: tudo é
   simulado e rotulado como demonstração no rodapé.
-- Os assets do Figma ainda não foram incorporados; substituições e ajustes serão
-  listados aqui e no README quando a seção 1 for executada.
 - O service worker não intercepta requisições feitas antes da primeira ativação; o
   bootstrap espera `worker.start()` antes de renderizar para evitar esse estado.
+- Em desenvolvimento, um full reload disparado por HMR pode deixar a página sem
+  interceptação por um instante (a requisição cai no fallback do Vite). Recarregar
+  resolve; o build de demonstração sempre inicia o worker antes do primeiro fetch.
+- As imagens dos cards são derivadas dos frames (~255 px de largura). Servem ao
+  layout em DPR 1 e 2 sem ampliação visível, mas não são os arquivos originais do
+  Figma.

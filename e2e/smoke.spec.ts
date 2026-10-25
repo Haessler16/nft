@@ -1,19 +1,23 @@
 import { expect, test } from '@playwright/test'
 
+import { signIn } from './helpers'
+
 /**
  * Smoke test for the scaffold (docs/PLAN.md → Seção 0).
  *
  * It proves the pieces that everything else depends on: the router renders the
  * shell, MSW intercepts REST at the network layer, the 404 boundary works and
- * `/account` forwards to the profile. Deeper flows are added per plan section.
+ * `/account` forwards to the profile.
  */
 test.describe('estrutura inicial', () => {
-  test('a home renderiza o shell com cabeçalho e conteúdo', async ({ page }) => {
+  test('a home renderiza o shell da KURIO', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'SEJA DONO DO FUTURO DA ARTE DIGITAL' }),
+    ).toBeVisible()
     await expect(page.getByRole('banner')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'NFT Market', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'KURIO', exact: true })).toBeVisible()
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByRole('contentinfo')).toBeVisible()
   })
@@ -55,6 +59,9 @@ test.describe('estrutura inicial', () => {
   })
 
   test('/account redireciona para o perfil', async ({ page }) => {
+    // `/account/*` became private in Seção 4: without a session the visitor
+    // would be sent to `/login`, so the index redirect is only observable signed in.
+    await signIn(page, { email: 'ava@kurio.demo' })
     await page.goto('/account')
 
     await expect(page).toHaveURL(/\/account\/profile$/)

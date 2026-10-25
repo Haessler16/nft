@@ -8,14 +8,15 @@ import { SiteHeader } from '@/components/layout/site-header'
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
-      { title: 'NFT Market — marketplace de NFTs' },
+      { title: 'KURIO — marketplace de NFTs' },
       {
         name: 'description',
         content:
-          'Explore, favorite e compre NFTs em um marketplace com dados simulados: catálogo, carrinho, checkout e conta do colecionador.',
+          'Explore, favorite e compre NFTs na KURIO: catálogo com curadoria, carrinho, checkout e conta do colecionador — tudo com dados simulados.',
       },
       { property: 'og:type', content: 'website' },
-      { property: 'og:title', content: 'NFT Market — marketplace de NFTs' },
+      { property: 'og:title', content: 'KURIO — marketplace de NFTs' },
+      { property: 'og:locale', content: 'pt_BR' },
     ],
     links: [{ rel: 'canonical', href: '/' }],
   }),

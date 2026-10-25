@@ -44,7 +44,10 @@ export interface FormatEthOptions {
 export const formatEth = (value: string, options: FormatEthOptions = {}): string => {
   const { maxFractionDigits = 4, symbol = true } = options
   const amount = dec(value).toFixed(maxFractionDigits)
-  return symbol ? `${amount} ${ETH}` : amount
+  // `maxFractionDigits` is a cap, not a width: drop the padding `toFixed` adds,
+  // so 1.19 renders as "1.19 ETH" and never as "1.1900 ETH".
+  const trimmed = amount.includes('.') ? amount.replace(/0+$/, '').replace(/\.$/, '') : amount
+  return symbol ? `${trimmed} ${ETH}` : trimmed
 }
 
 /** Percentage already computed by the API, only formatted for display. */

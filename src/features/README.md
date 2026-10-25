@@ -23,12 +23,16 @@ Regras:
 - chaves de cache sempre vêm de `src/lib/query/keys.ts` (escopo por usuário);
 - ETH nunca é `number`: entra e sai como string decimal, aritmética em `decimal.js`.
 
+Estado atual: `nfts` já tem `api/contracts.ts`, `api/endpoints.ts`, `api/queries.ts`,
+`catalog-search.ts` (estado na URL) e os componentes do catálogo/home. As demais
+features chegam nas seções do plano.
+
 Features planejadas (ver [docs/PLAN.md](../../docs/PLAN.md)):
 
 | Feature | Seção | Conteúdo |
 | --- | --- | --- |
 | `auth` | 4 | sessão, login, cadastro, guardas de rota |
-| `nfts` | 5, 6 | catálogo, busca/filtros, detalhe, galeria |
+| `nfts` | 5, 6 | catálogo, busca/filtros (feito); detalhe e galeria pendentes |
 | `favorites` | 6 | favoritos com atualização otimista |
 | `cart` | 7 | itens, quantidades, cupom, resumo |
 | `checkout` | 8 | formulário, carteira/rede, idempotência |

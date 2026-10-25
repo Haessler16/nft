@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { requireSession } from '@/app/guards'
 import { RoutePlaceholder } from '@/components/feedback/route-placeholder'
 
 export const Route = createFileRoute('/account/profile')({
+  beforeLoad: requireSession,
   head: () => ({
     meta: [{ title: 'Perfil — NFT Market' }],
   }),

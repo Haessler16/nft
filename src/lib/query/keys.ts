@@ -10,10 +10,17 @@
 
 export type UserScope = string // user id, or 'guest' before authentication
 
+/** Cart/favorites scope used before authentication (imported by app and mocks). */
+export const GUEST_SCOPE: UserScope = 'guest'
+
+/**
+ * Catalog query parameters. The same object drives the URL, the REST request
+ * and the cache key, so a filter combination can never leak into another.
+ */
 export interface NftListParams {
-  search: string
-  category: string[]
-  collection: string[]
+  q: string
+  categories: string[]
+  networks: string[]
   minPrice: string | null
   maxPrice: string | null
   sort: string
@@ -28,6 +35,7 @@ export const queryKeys = {
     all: () => ['nfts'] as const,
     list: (params: NftListParams) => ['nfts', 'list', params] as const,
     detail: (nftId: string) => ['nfts', 'detail', nftId] as const,
+    related: (collection: string) => ['nfts', 'related', collection] as const,
   },
 
   favorites: {

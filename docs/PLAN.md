@@ -35,16 +35,19 @@ serve a home; rota inexistente cai no 404 estilizado.
 **Objetivo:** traduzir o Figma em tokens (cor, tipografia, raio, sombra, espaçamento)
 e no shell que todas as telas compartilham.
 
-- [ ] Auditar o Figma e extrair tokens; preencher `src/index.css` (`:root` do tema)
-- [ ] Fontes locais via `@fontsource` (sem CDN), fallback documentado
-- [ ] Componentes base adaptados: `Button`, `Input`, `Card`, `Badge`, `Dialog`,
-      `Sheet`/`Drawer`, `Select`, `Tabs`, `Pagination`
-- [ ] `SiteHeader` (desktop + mobile com drawer), `SiteFooter`, breadcrumb
-- [ ] Skeletons com shimmer reutilizáveis (`NftCardSkeleton`, `DetailSkeleton`,
-      `SummarySkeleton`) respeitando `prefers-reduced-motion`
-- [ ] Componentes de estado: `EmptyState`, `ErrorState`, `InlineError`, `AsyncBoundary`
-- [ ] Foco visível global, skip link, `aria-live` para feedback de mutação
-- [ ] Verificação em 390 / 768 / 1440 sem overflow horizontal
+- [x] Auditar os frames e extrair tokens; preencher `src/index.css` (`:root` do tema)
+- [x] Fontes locais via `@fontsource` (Archivo Narrow + Courier Prime, sem CDN)
+- [x] Componentes base adaptados: `Button`, `Input`, `Label`, `Badge`, `Card`,
+      `Sheet`, `Skeleton` (demais herdam os tokens)
+- [x] `SiteHeader` (desktop + menu mobile em Sheet + busca), `SiteFooter`
+- [x] `NftCardSkeleton` + `NftGridSkeleton` com shimmer e `prefers-reduced-motion`
+- [x] `DetailSkeleton` (chegou com a seção 6)
+- [ ] `SummarySkeleton` (chega com a seção 7)
+- [x] Breadcrumb compartilhado (`src/components/layout/breadcrumb.tsx`, usado no
+      detalhe; carrinho e checkout entram na mesma trilha nas seções 7–8)
+- [x] Estados de vazio e erro no catálogo, com retry e `aria-live` de atualização
+- [x] Foco visível global, skip link no root
+- [x] Smoke responsivo em 390 / 768 / 1440 pelo Playwright (sem overflow na home)
 
 **Aceite:** shell navegável por teclado em três larguras; nenhum texto/foco
 inacessível; tokens centralizados (sem cor hardcoded em componentes).
@@ -58,20 +61,27 @@ inacessível; tokens centralizados (sem cor hardcoded em componentes).
 **Objetivo:** uma única fonte de verdade simulada, na camada de rede, usada por
 desenvolvimento, demonstração e testes.
 
-- [ ] Fixtures: ~40 NFTs (categorias, coleções, preços variados, edições/epósio,
-      imagens locais), 2 usuários, cupons válido/expirado, carteiras
-- [ ] `src/mocks/db.ts`: estado consistente entre catálogo, favoritos, carrinho,
-      perfil, carteiras e pedidos + persistência em `localStorage` + `resetDatabase()`
-- [ ] Handlers REST: sessão/conta, NFTs (list + detail), favoritos, carrinho,
-      cotação, pedidos (idempotência), perfil, carteiras
-- [ ] Envelope de erro único (`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`,
-      `NOT_FOUND`, `CONFLICT`, `UNAVAILABLE`, `INTERNAL`)
+- [x] Fixtures de catálogo: 30 NFTs determinísticos (9 categorias, 3 redes, 3 séries,
+      artwork local) — `src/mocks/fixtures/nfts.ts`
+- [x] Fixtures de usuários: 2 contas demo determinísticas derivadas das
+      credenciais — `src/mocks/fixtures/users.ts`
+- [ ] Fixtures restantes: cupons válido/expirado, carteiras, pedidos
+- [x] `src/mocks/db.ts`: estado único persistido em `localStorage` + `resetDatabase()`
+      exposto em `POST /api/__mock/reset` (usado pelos testes)
+- [x] Handlers de catálogo: `GET /api/nfts` (busca/filtros/ordenação/paginação/facets)
+      e `GET /api/nfts/:nftId` (404 do contrato)
+- [x] Handlers de sessão/conta (`GET /api/session`, login, registro, logout),
+      favoritos e carrinho
+- [ ] Handlers REST restantes: cotação, pedidos, perfil, carteiras
+- [x] Envelope de erro único (`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`,
+      `NOT_FOUND`, `CONFLICT`, `UNAVAILABLE`, `INTERNAL`) em `handlers/envelope.ts`
 - [ ] Cenários determinísticos selecionáveis por env/console:
       `default`, `slow`, `empty`, `flaky`, `session-expired`, `conflict`,
       `coupon-invalid`, `price-changed`, `sold-out`, `order-timeout`,
-      `payment-declined`
+      `payment-declined` (prontos: `default`, `flaky`, `session-expired`)
 - [ ] Latência variável e respostas fora de ordem; falhas de conexão e 5xx
-- [ ] Reset de cenário sem reload + documentação dos cenários no README
+- [x] Reset de cenário sem reload (`POST /api/__mock/scenario`) + documentação dos
+      cenários implementados no README
 
 **Aceite:** cada cenário é reproduzível a partir de um reset conhecido; nenhum dado
 fictício em componentes/hooks/axios.
@@ -88,11 +98,12 @@ fictício em componentes/hooks/axios.
 - [x] Tipos base (`EthAmount` string, `Quantity` inteiro, `Paginated`, meta)
 - [x] Fábrica de query keys com escopo por usuário
 - [ ] `contracts.ts` por feature: `auth`, `nfts`, `favorites`, `cart`, `quote`,
-      `orders`, `profile`, `wallets`
+      `orders`, `profile`, `wallets` (feitos: `auth`, `nfts`, `favorites`, `cart`)
 - [ ] Funções de endpoint (Axios) por feature, todas recebendo `signal`
+      (feitas para `auth`, `nfts`, `favorites`, `cart`)
 - [ ] Query options/mutations reutilizáveis (`queryOptions`, `mutationOptions`)
 - [ ] Invalidação padronizada após mutation e após evento de socket
-- [ ] Documentar tabela de endpoints no `ARCHITECTURE.md`
+- [x] Documentar tabela de endpoints no `ARCHITECTURE.md`
 
 **Aceite:** nenhuma resposta HTTP é tipada como `any`; o mesmo tipo é usado pelo
 handler MSW, pela função de endpoint e pelo componente.
@@ -106,14 +117,15 @@ handler MSW, pela função de endpoint e pelo componente.
 **Objetivo:** conta e sessão completas, com recuperação após refresh e isolamento
 por usuário.
 
-- [ ] `SessionProvider` + query de sessão (`GET /session`), cookie simulado
-- [ ] Login (validação, erro da API, `redirect` de retorno ao fluxo anterior)
-- [ ] Cadastro (validação, conflito de e-mail, força de senha)
-- [ ] Guarda de rotas privadas via `beforeLoad` (`/checkout`, `/account/*`, pedidos)
-- [ ] Expiração durante navegação e durante checkout, preservando o destino
-- [ ] Logout: limpa cache privado (`queryClient.removeQueries` por escopo) e
+- [x] `SessionProvider` + query de sessão (`GET /session`), cookie simulado
+- [x] Login (validação, erro da API, `redirect` de retorno ao fluxo anterior)
+- [x] Cadastro (validação, conflito de e-mail, força de senha)
+- [x] Guarda de rotas privadas via `beforeLoad` (`/checkout`, `/account/*`, pedidos)
+- [x] Expiração durante navegação e durante checkout, preservando o destino
+      (cenário `session-expired` + E2E)
+- [x] Logout: limpa cache privado (`queryClient.removeQueries` por escopo) e
       subscriptions; troca de usuário não vaza dados
-- [ ] Credenciais fictícias documentadas
+- [x] Credenciais fictícias documentadas (`src/features/auth/demo.ts` + README)
 
 **Aceite:** refresh mantém a sessão; sessão expirada leva ao login sem perder o
 carrinho; dois usuários nunca compartilham favoritos/carrinho/pedidos.
@@ -126,13 +138,15 @@ carrinho; dois usuários nunca compartilham favoritos/carrinho/pedidos.
 
 **Objetivo:** descoberta com estado 100% na URL.
 
-- [ ] Busca com debounce, `q`, filtros combináveis (`category`, `collection`,
-      faixa de preço), ordenação e paginação — tudo em search params validados
-- [ ] Reset de página ao mudar filtro; URL sobrevive a refresh e histórico
-- [ ] Seção de destaques (curadoria) + grid do catálogo com `NftCard`
-- [ ] Estados: loading (skeleton), vazio, erro com retry, atualização em background
-- [ ] Descarte de respostas fora de ordem e cancelamento por `signal`
-- [ ] Filtros e ordenação em drawer no mobile
+- [x] Busca (`q`), filtros combináveis (categoria, rede, faixa de preço),
+      ordenação e paginação em search params validados com zod
+- [x] Reset de página ao mudar filtro; URL sobrevive a refresh e histórico
+- [x] Grid do catálogo com `NftCard`, abas de visão e “NFT em destaque” na coluna
+      de filtros (composição do frame de Início)
+- [x] Estados: skeleton, vazio, erro com retry e atualização em background
+- [x] Cancelamento por `signal` e `keepPreviousData` (sem respostas fora de ordem)
+- [x] Filtros em disclosure no mobile (o frame mobile não define drawer)
+- [ ] Busca com debounce em tempo real (hoje a busca é por submit, sem request por tecla)
 
 **Aceite:** combinação de filtros + ordenação + página recarregável e compartilhável;
 requisição reflete exatamente os parâmetros da URL.
@@ -143,13 +157,13 @@ requisição reflete exatamente os parâmetros da URL.
 
 ## Seção 6 — Detalhe do NFT e favoritos
 
-- [ ] Galeria (imagem principal + thumbnails), informações, coleção, criador,
+- [x] Galeria (imagem principal + thumbnails), informações, coleção, criador,
       cadeia/rede, edição e escassez
-- [ ] Acesso direto por URL, 404 para NFT inexistente, estado de edição esgotada
-- [ ] Seletor de quantidade limitado pela disponibilidade
-- [ ] Favoritar com **atualização otimista + rollback** em falha
-- [ ] Adicionar ao carrinho a partir do detalhe
-- [ ] Favoritos persistem para o usuário autenticado (visitante é convidado a entrar)
+- [x] Acesso direto por URL, 404 para NFT inexistente, estado de edição esgotada
+- [x] Seletor de quantidade limitado pela disponibilidade
+- [x] Favoritar com **atualização otimista + rollback** em falha
+- [x] Adicionar ao carrinho a partir do detalhe
+- [x] Favoritos persistem para o usuário autenticado (visitante é convidado a entrar)
 - [ ] `nft.updated` refletindo preço/disponibilidade no detalhe
 
 **Aceite:** link direto funciona em produção (fallback SPA); favorito falho volta ao

@@ -1,8 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { requireSession } from '@/app/guards'
 import { RoutePlaceholder } from '@/components/feedback/route-placeholder'
 
 export const Route = createFileRoute('/checkout')({
+  // Private flow: an expired session is sent to /login carrying this URL, so
+  // the purchase resumes here after authentication (docs/PLAN.md → Seção 4).
+  beforeLoad: requireSession,
   head: () => ({
     meta: [{ title: 'Pagamento — NFT Market' }],
   }),
