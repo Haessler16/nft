@@ -1,8 +1,10 @@
 import type { CartEntry } from '@/features/cart/api/contracts'
-import type { NftDetail } from '@/features/nfts/api/contracts'
+import type { NftDetail, NftNetwork } from '@/features/nfts/api/contracts'
+import type { Order } from '@/features/orders/api/contracts'
 import { percentOf, sumEth } from '@/lib/money'
 import { buildNfts } from '@/mocks/fixtures/nfts'
 import { USERS, type UserFixture } from '@/mocks/fixtures/users'
+import { WALLETS, type WalletFixture } from '@/mocks/fixtures/wallets'
 import { env } from '@/lib/env'
 import { GUEST_SCOPE } from '@/lib/query/keys'
 
@@ -26,6 +28,21 @@ export interface SessionState {
   createdAt: string
 }
 
+/**
+ * Order as stored by the mock: the public snapshot plus what only the server
+ * needs — owner, idempotency bookkeeping and when the payment settles.
+ */
+export interface StoredOrder extends Order {
+  userId: string
+  idempotencyKey: string
+  /** Digest of the request content, so the same key with another payload is a conflict. */
+  requestHash: string
+  /** Moment the simulated payment moves from pending to a terminal state. */
+  settleAt: string
+}
+
+export type { WalletFixture }
+
 export interface DbState {
   version: number
   nfts: NftDetail[]
@@ -36,12 +53,51 @@ export interface DbState {
   favorites: Record<string, string[]>
   /** Carts per scope (`guest` or a user id). */
   carts: Record<string, CartEntry[]>
+  /** Registered wallets (Seções 8 e 11). */
+  wallets: WalletFixture[]
+  /** Orders per user; each one is a frozen snapshot (Seções 8 e 9). */
+  orders: StoredOrder[]
+  /** Sequence used by deterministic order ids (`ord_0001`). */
+  orderSeq: number
   /** Active deterministic scenario (docs/PLAN.md → Seção 2). */
   scenario: string
+  /**
+   * Last realtime version emitted per resource (Seção 10). Wall-clock based
+   * and persisted with the state, so every tab agrees on the monotonic order
+   * and a reset never produces versions lower than what clients already saw.
+   */
+  versions: Record<string, number>
 }
 
-const STORAGE_KEY = 'kurio:db:v3'
-const SCHEMA_VERSION = 3
+const STORAGE_KEY = 'kurio:db:v4'
+const SCHEMA_VERSION = 4
+
+/**
+ * Deterministic 64-hex transaction hash derived from the order id.
+ *
+ * The mock has no chain: the value only needs to be stable (a refresh keeps the
+ * same receipt) and shaped like a real tx hash.
+ */
+const transactionHash = (orderId: string): string => {
+  let hash = 0x811c9dc5
+  for (const character of orderId) {
+    hash ^= character.charCodeAt(0)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  let out = ''
+  for (let index = 0; index < 8; index += 1) {
+    hash = Math.imul(hash ^ (hash >>> 13), 0x5bd1e995) >>> 0
+    out += hash.toString(16).padStart(8, '0')
+  }
+  return `0x${out}`
+}
+
+/** Simulated explorer per network; the UI labels the link as fictional. */
+export const EXPLORER_URLS: Record<NftNetwork, string> = {
+  Ethereum: 'https://etherscan.io/tx/',
+  Polygon: 'https://polygonscan.com/tx/',
+  Solana: 'https://solscan.io/tx/',
+}
 
 /**
  * Scenarios that change **data** (docs/PLAN.md → Seção 2) rebuild the catalog
@@ -71,7 +127,11 @@ const createState = (): DbState => ({
   session: null,
   favorites: {},
   carts: { [GUEST_SCOPE]: [] },
+  wallets: [...WALLETS],
+  orders: [],
+  orderSeq: 0,
   scenario: env.mockScenario,
+  versions: {},
 })
 
 const readState = (): DbState | null => {
@@ -86,9 +146,16 @@ const readState = (): DbState | null => {
       typeof parsed.favorites !== 'object' ||
       parsed.favorites === null ||
       typeof parsed.carts !== 'object' ||
-      parsed.carts === null
+      parsed.carts === null ||
+      !Array.isArray(parsed.wallets) ||
+      !Array.isArray(parsed.orders) ||
+      typeof parsed.orderSeq !== 'number'
     ) {
       return null
+    }
+    // `versions` arrived with Seção 10; an older persisted state is still valid.
+    if (typeof parsed.versions !== 'object' || parsed.versions === null) {
+      parsed.versions = {}
     }
     return parsed
   } catch {
@@ -186,6 +253,159 @@ export const db = {
     return update(() => ({ carts: { ...state.carts, [scope]: items } }))
   },
 
+  /** Wallets -------------------------------------------------------------- */
+  walletsFor(userId: string): WalletFixture[] {
+    return state.wallets.filter((wallet) => wallet.userId === userId)
+  },
+  findWallet(userId: string, walletId: string): WalletFixture | undefined {
+    return state.wallets.find(
+      (wallet) => wallet.userId === userId && wallet.id === walletId,
+    )
+  },
+
+  /** Orders --------------------------------------------------------------- */
+  /** Deterministic next id (`ord_0001`), persisted so ids never repeat. */
+  nextOrderId(): string {
+    const seq = state.orderSeq + 1
+    update(() => ({ orderSeq: seq }))
+    return `ord_${String(seq).padStart(4, '0')}`
+  },
+  ordersFor(userId: string): StoredOrder[] {
+    return state.orders.filter((order) => order.userId === userId)
+  },
+  findOrder(userId: string, orderId: string): StoredOrder | undefined {
+    return state.orders.find(
+      (order) => order.userId === userId && order.id === orderId,
+    )
+  },
+  /** Same key + same user = the same order, which is what makes retries safe. */
+  findOrderByIdempotencyKey(
+    userId: string,
+    idempotencyKey: string,
+  ): StoredOrder | undefined {
+    return state.orders.find(
+      (order) =>
+        order.userId === userId && order.idempotencyKey === idempotencyKey,
+    )
+  },
+  createOrder(order: StoredOrder): StoredOrder {
+    update((current) => ({ orders: [...current.orders, order] }))
+    return order
+  },
+
+  /**
+   * Settles due payments (docs/PLAN.md → Seção 8).
+   *
+   * Called by the order handlers before answering, so a refresh (or a GET after
+   * the socket reconnects) always observes the same terminal state a live
+   * client would have received. The outcome is a scenario rule:
+   *
+   * - `payment-declined` → **declined**, and nothing is taken from the cart;
+   * - any other scenario → **confirmed**, which decrements the edition's stock
+   *   and removes *only* the bought quantities from the buyer's cart.
+   */
+  settleOrders(now = Date.now()): StoredOrder[] {
+    const due = state.orders.filter(
+      (order) =>
+        order.status === 'pending' && Date.parse(order.settleAt) <= now,
+    )
+    if (due.length === 0) return []
+
+    const orders = [...state.orders]
+    let nfts = state.nfts
+    let carts = { ...state.carts }
+    const settled: StoredOrder[] = []
+
+    for (const target of due) {
+      const index = orders.findIndex((order) => order.id === target.id)
+      const order = orders[index]
+      if (!order) continue
+
+      if (state.scenario === 'payment-declined') {
+        const declined: StoredOrder = {
+          ...order,
+          status: 'declined',
+          updatedAt: new Date(now).toISOString(),
+          failureReason: 'Pagamento recusado pela simulação.',
+        }
+        orders[index] = declined
+        settled.push(declined)
+        continue
+      }
+
+      const confirmedAt = new Date(now).toISOString()
+      const hash = transactionHash(order.id)
+      const confirmed: StoredOrder = {
+        ...order,
+        status: 'confirmed',
+        updatedAt: confirmedAt,
+        transaction: {
+          hash,
+          explorerUrl: `${EXPLORER_URLS[order.wallet.network]}${hash}`,
+          confirmedAt,
+        },
+        failureReason: null,
+      }
+      orders[index] = confirmed
+      settled.push(confirmed)
+
+      // Stock leaves only when the payment is confirmed...
+      nfts = nfts.map((nft) => {
+        const line = order.lines.find((candidate) => candidate.nftId === nft.id)
+        return line
+          ? { ...nft, available: Math.max(0, nft.available - line.quantity) }
+          : nft
+      })
+
+      // ...and only the bought quantities leave the cart.
+      const cart = carts[order.userId] ?? []
+      carts = {
+        ...carts,
+        [order.userId]: cart
+          .map((entry) => {
+            const line = order.lines.find(
+              (candidate) => candidate.nftId === entry.nftId,
+            )
+            return line
+              ? { ...entry, quantity: entry.quantity - line.quantity }
+              : entry
+          })
+          .filter((entry) => entry.quantity > 0),
+      }
+    }
+
+    commit({ ...state, orders, nfts, carts })
+    return settled
+  },
+
+  /**
+   * Next monotonic version for a resource (docs/PLAN.md → Seção 10).
+   *
+   * Based on the wall clock with a `+1` guard, so it strictly increases even
+   * for several emissions in the same millisecond — and stays above anything a
+   * client has seen after a reset (old versions are timestamps too).
+   */
+  nextVersion(resourceId: string): number {
+    const previous = state.versions[resourceId] ?? 0
+    const version = Math.max(Date.now(), previous + 1)
+    update((current) => ({
+      versions: { ...current.versions, [resourceId]: version },
+    }))
+    return version
+  },
+  /**
+   * Re-reads the persisted state (docs/PLAN.md → Seção 10).
+   *
+   * Handlers run in the page, so every tab keeps its own in-memory copy. When
+   * another tab mutates the shared `localStorage`, this tab calls `reload()`
+   * before answering anything else — otherwise a REST refetch triggered by a
+   * realtime event would answer with stale data.
+   */
+  reload(): DbState {
+    const fresh = readState()
+    if (fresh) state = fresh
+    return state
+  },
   /** Replaces the whole state and persists it. */
   commit,
   /** Restores the deterministic seed (used by demo reset and tests). */

@@ -124,10 +124,15 @@ o resultado para o contrato REST, e a query key usa exatamente esse objeto.
 | DELETE | `/api/cart/items/:nftId` | remove | `handlers/cart.ts` | `cart` |
 | GET | `/api/quote` | `QuoteResponse` (`items=nft:qtd,…`, `coupon`) · `422`/`404` | `handlers/quote.ts` | `cart` |
 | POST | `/api/coupons/validate` | `{ code }` → `CouponValidation` · `422` (`fields.coupon`) | `handlers/quote.ts` | `cart` |
+| GET | `/api/wallets` | `WalletsResponse` · `401` | `handlers/wallets.ts` | `wallets` |
+| POST | `/api/wallets/connect` | `ConnectWalletInput` → `WalletConnection` (`200` com `status: refused`) · `401`/`404`/`422`/`503` | `handlers/wallets.ts` | `wallets` |
+| POST | `/api/orders` | `CreateOrderInput` + header `Idempotency-Key` → `Order` (`201`) · `401`/`409`/`422`/`504` | `handlers/orders.ts` | `orders` |
+| GET | `/api/orders` | `OrdersListResponse` (pedidos do escopo, mais recentes primeiro) · `401` | `handlers/orders.ts` | `orders` |
+| GET | `/api/orders/:orderId` | `Order` (pending/confirmed/declined) · `401`/`404` | `handlers/orders.ts` | `orders` |
+| GET | `/api/orders/by-key/:idempotencyKey` | `Order` · `401`/`404` (recuperação após timeout) | `handlers/orders.ts` | `orders` |
 
 Erros seguem sempre o envelope `{ error: { code, message, fields? } }`
-(`handlers/envelope.ts`). Cotação, pedidos, perfil e carteiras chegam com as
-Seções 7–11.
+(`handlers/envelope.ts`). O CRUD de perfil e de carteiras chega na Seção 11.
 
 ## 5. Estado remoto: cache, retries e invalidação
 
@@ -156,6 +161,13 @@ Atualização otimista obrigatória: favoritar (Seção 6) — `onMutate` cancel
 refetch em voo, grava o estado anterior e aplica o toggle, `onError` faz rollback
 e mostra feedback acessível (toast + região `aria-live`), `onSettled` reconcilia
 com a resposta do servidor.
+
+Pedido (Seção 8): `useCreateOrder` roda com `retry: 0` e, em erro retentável,
+tenta **recuperar** o pedido pela chave de idempotência antes de qualquer novo
+POST; a query do pedido usa `staleTime: 0` e `refetchInterval` de 700 ms apenas
+enquanto o status é `pending` (terminal para de poll). Ao confirmar, o painel
+invalida `cart`, `nfts`, `quote` e o histórico de pedidos (`orders` por escopo),
+porque o servidor baixou estoque e removeu só as quantidades compradas.
 
 Aguardos imperativos em loaders e guardas passam por
 [src/lib/query/ensure.ts](src/lib/query/ensure.ts): o React StrictMode do
@@ -191,14 +203,16 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
 - Cenários determinísticos selecionáveis por `VITE_MOCK_SCENARIO` (boot) ou por
   `POST /api/__mock/scenario` (runtime, sem reload), aplicados no handler — nunca
   com código alternativo na UI. Implementados e documentados no README:
-  `default`, `flaky` (mutações de favorito com `503`, exercita rollback),
-  `session-expired` (`GET /api/session` revoga a sessão ativa) e os dois que
-  alteram **os dados**: `price-changed` (preços +10%) e `sold-out` (nenhuma
-  unidade). Esses dois são rederivados da semente a cada troca
-  (`applyScenarioData` no `db.ts`), então alterná-los nunca acumula efeito e
-  catálogo, detalhe, carrinho e cotação mostram sempre os mesmos números.
-  Os demais (`slow`, `empty`, `conflict`, `coupon-invalid`, `order-timeout`,
-  `payment-declined`) chegam com as seções que os consomem.
+  `default`, `flaky` (mutações de favorito com `503`, exercita rollback, e o
+  handshake da carteira com `503`), `session-expired` (`GET /api/session` revoga
+  a sessão ativa) e os dois que alteram **os dados**: `price-changed` (preços
+  +10%) e `sold-out` (nenhuma unidade). Esses dois são rederivados da semente a
+  cada troca (`applyScenarioData` no `db.ts`), então alterná-los nunca acumula
+  efeito e catálogo, detalhe, carrinho e cotação mostram sempre os mesmos
+  números. `order-timeout` cria o pedido e responde `504` (resposta perdida na
+  borda) e `payment-declined` faz a liquidação terminar em `declined`; os dois
+  estão descritos em README → Cenários e cobertos pelo E2E do checkout. Faltam
+  `slow`, `empty`, `conflict` e `coupon-invalid`.
 - Eventos: `@mswjs/socket.io-binding` no mesmo worker entrega os eventos ao
   `socket.io-client` real. Limitações a documentar na seção 10: exige service worker
   (por isso a demo é servida por HTTPS/HTTP local), a primeira navegação só passa a ser
@@ -262,7 +276,81 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
   `price-changed`/`sold-out`; a entrega *em tempo real* chega com
   `nft.updated` (Seção 10).
 
-## 10. Interface, responsividade e acessibilidade
+## 10. Checkout, carteiras e pedidos (Seção 8)
+
+- **Formulário** ([src/features/checkout/schema.ts](src/features/checkout/schema.ts)):
+  zod espelha as regras do handler; os erros da API vêm em `fields` com nomes de
+  campo em português e são traduzidos por `API_FIELD_ALIAS` para o `setError`
+  (`nomeExibicao` → `displayName`, `rede` → `network`, …). É o mesmo padrão de
+  login/cadastro, então a mensagem aparece sempre ao lado do input errado.
+- **Carteiras**: `GET /api/wallets` devolve só as do usuário da sessão. A conexão
+  é uma chamada real (`POST /api/wallets/connect`), não estado de componente:
+  o handler recusa (200 + `status: "refused"`) quando o provider não assina a
+  rede pedida (`PROVIDER_NETWORKS`), o que reproduz “extensão na rede errada”.
+  Trocar de rede derruba a conexão (ela é por rede).
+- **Revisão** ([review-dialog.tsx](src/features/checkout/components/review-dialog.tsx)):
+  mostra o snapshot (colecionador, carteira, itens, taxas, total). Confirmar
+  refaz o `GET /api/quote` com `staleTime: 0` e compara com `quotesMatch`
+  (`total`, linhas, disponibilidade); total diferente troca o CTA para
+  “Confirmar novo total” e **não envia**, disponibilidade perdida manda o
+  usuário ajustar o carrinho. O servidor repete a checagem comparando
+  `expectedTotal` com a cotação recalculada e responde `409` com
+  `fields.cotacao` se algo escapou.
+- **Idempotência**: a chave nasce antes do POST e é persistida em
+  `localStorage` (`kurio:checkout:key:<escopo>`) junto com o fingerprint
+  (itens + cupom + total) em [storage.ts](src/features/checkout/storage.ts).
+  Clique repetido é barrado por `submittingRef` + botão desabilitado; resposta
+  perdida (rede/5xx) dispara `GET /api/orders/by-key/:key` **antes** de
+  qualquer novo POST — se o pedido existe, ele é o resultado. O handler também
+  é idempotente: mesma chave + mesmo conteúdo devolve o pedido existente, mesma
+  chave + conteúdo diferente responde `409`.
+- **Liquidação**: o pedido nasce `pending` e o `GET` chama `db.settleOrders()`;
+  depois de `ORDER_SETTLE_MS` (900 ms) vira `confirmed` (baixa estoque e remove
+  só as quantidades compradas do carrinho) ou `declined` no cenário
+  `payment-declined` (nada é removido). `order.updated` (Seção 10) substituirá
+  o poll de 700 ms por evento.
+- **Retomada**: o id do pedido ativo é persistido por escopo
+  (`kurio:checkout:order:<escopo>`); recarregar `/checkout` reabre o painel com
+  o status atual em vez de um carrinho vazio. Estado terminal limpa a chave de
+  idempotência; “Fazer outro pedido” limpa o registro para uma nova compra.
+  `order-timeout` está representado por um `504` depois de criar o pedido
+  (o service worker não consegue descartar a resposta em silêncio); o efeito no
+  cliente é o mesmo de um timeout de rede e a recuperação usa a mesma chave.
+- **Sessão durante o envio**: um `401` no POST limpa a query `['session']` e
+  navega para `/login?redirect=/checkout` — o login devolve ao checkout com o
+  carrinho intacto, sem criar pedido.
+- **Isolamento**: pedido de outro usuário responde `404` (não vaza existência);
+  chave, pedido ativo e carteiras são todos escopados pelo id da sessão.
+
+## 11. Pedido, recibo e histórico (Seção 9)
+
+- **Recibo como snapshot:** [order-receipt.tsx](src/features/orders/components/order-receipt.tsx)
+  renderiza exclusivamente o que foi congelado na criação do pedido (linhas,
+  preços, taxas, cupom, carteira). Nenhuma tela junta o recibo com o catálogo
+  vivo, então `price-changed` (ou qualquer alteração posterior) não reescreve um
+  recibo — comportamento coberto por E2E.
+- **Composição:** segue o frame “Confirmação de Pedido” de `nft img/` — cabeçalho
+  de agradecimento com o status, faixa de quatro células (ID da transação,
+  data, total, carteira), tabela “Detalhes da transação” (imagem, token,
+  edições, subtotal), linhas de subtotal/desconto/taxa/total e o CTA do
+  explorador. O link do explorador é **simulado** e rotulado como tal.
+- **Acesso direto:** `/orders/$orderId` é privada (`requireSession`) e o handler
+  responde `404` para id inexistente *ou* pedido de outra conta — a UI mostra o
+  mesmo “Pedido não encontrado” nos dois casos, sem vazar existência.
+- **Estados:** pendente faz o mesmo poll de 700 ms do checkout (`orderQueryOptions`)
+  e para em `confirmed`/`declined`; o E2E abre o recibo ainda pendente e espera
+  a transição sem criar outro pedido. `order.updated` (Seção 10) substituirá o
+  poll por evento com a mesma semântica de terminal.
+- **Histórico:** `/account/orders` lê `GET /api/orders` (apenas o escopo da
+  sessão, mais recentes primeiro) com skeleton, vazio, erro com retry. Cada
+  linha lê o snapshot gravado no pedido — status, data, total e primeira linha —
+  e navega para o recibo. Ao chegar a um estado terminal, o painel do checkout
+  invalida `['orders', escopo]` para a lista não ficar defasada.
+- **Isolamento:** a query key é `['orders', escopo, id]`; logout/troca de usuário
+  remove o escopo inteiro (`removeQueries(['orders'])`), então o cache do usuário
+  anterior nunca atende o novo escopo.
+
+## 12. Interface, responsividade e acessibilidade
 
 - Tokens em `src/index.css` (`@theme`), base shadcn/ui; componentes da UI recebem a
   identidade do Figma via CSS variables, não via classes soltas.
@@ -273,7 +361,7 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
 - Foco visível global, skip link no root, foco preso em dialog/drawer (Radix), erros
   associados por `aria-describedby`, feedback de mutação e de evento em `aria-live`.
 
-## 11. Design system e assets (KURIO)
+## 13. Design system e assets (KURIO)
 
 Identidade extraída dos frames em `nft img/`:
 
@@ -313,7 +401,7 @@ inputs escuros) em vez de sobrescritos por tela. Skeletons usam a utilidade
 - Imagens têm `width`/`height` explícitos e `loading="lazy"` (exceto o hero, com
   `fetchPriority="high"`) para evitar CLS e acelerar o LCP.
 
-## 12. Limitações e desvios conhecidos
+## 14. Limitações e desvios conhecidos
 
 - Integrações reais de blockchain, carteira e pagamento estão fora do escopo: tudo é
   simulado e rotulado como demonstração no rodapé.
@@ -325,3 +413,13 @@ inputs escuros) em vez de sobrescritos por tela. Skeletons usam a utilidade
 - As imagens dos cards são derivadas dos frames (~255 px de largura). Servem ao
   layout em DPR 1 e 2 sem ampliação visível, mas não são os arquivos originais do
   Figma.
+- **Checkout:** “Código de indicação” e “Nome ENS” são opcionais (o frame marca
+  os dois como obrigatórios) para não bloquear a compra de quem não tem convite;
+  a carteira registrada é selecionada à direita e os campos de endereço/tipo
+  refletem a escolha, ficando editáveis só com “Usar outra carteira”.
+- **Pedido:** a tela de recibo completa (`/orders/:orderId`) e o histórico
+  (`/account/orders`) estão implementados na Seção 9; o checkout continua
+  mostrando o resultado (pendente/confirmado/recusado) e linka o recibo.
+- **Link de explorador:** o hash da transação é determinístico e o link aponta
+  para o explorador da rede, mas é explicitamente rotulado como simulado — não
+  existe transação on-chain.

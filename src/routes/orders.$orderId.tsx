@@ -1,31 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { requireSession } from '@/app/guards'
-import { RoutePlaceholder } from '@/components/feedback/route-placeholder'
+import { useSession } from '@/app/session/hooks'
+import { OrderReceiptScreen } from '@/features/orders/components/order-receipt-screen'
 
+/**
+ * `/orders/:orderId` (docs/PLAN.md → Seção 9).
+ *
+ * Private: `requireSession` sends an unauthenticated visitor to `/login` with
+ * this receipt as the return destination, and the API answers 404 for another
+ * collector's order — the screen shows a single "not found" for both cases, so
+ * a foreign id never reveals anything about it.
+ */
 export const Route = createFileRoute('/orders/$orderId')({
   beforeLoad: requireSession,
-  head: () => ({
-    meta: [{ title: 'Pedido — NFT Market' }],
-  }),
+  head: () => ({ meta: [{ title: 'Confirmação de pedido — KURIO' }] }),
   component: OrderRoute,
 })
 
 function OrderRoute() {
   const { orderId } = Route.useParams()
+  const { scope } = useSession()
 
-  return (
-    <RoutePlaceholder
-      title="Confirmação de pedido"
-      path={`/orders/${orderId}`}
-      section="docs/PLAN.md → Seção 9"
-      requirements={[
-        'Resultado do pedido (pendente, confirmado, recusado) e identificação da transação',
-        'Itens, taxas e total a partir do snapshot imutável do pedido',
-        'Recuperação do estado após refresh ou reconexão, sem criar outra compra',
-        'order.updated atualizando a tela até o estado terminal',
-        'Pedido de outro usuário não é acessível',
-      ]}
-    />
-  )
+  return <OrderReceiptScreen orderId={orderId} scope={scope} />
 }

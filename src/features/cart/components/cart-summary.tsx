@@ -14,6 +14,8 @@ interface CartSummaryProps {
   quote: UseQueryResult<QuoteResponse, unknown>
   /** Units in the cart — labels the subtotal while the quote is fresh. */
   count: number
+  /** Applied coupon, carried into the checkout so the quote is identical. */
+  coupon?: string
 }
 
 interface RowProps {
@@ -45,7 +47,7 @@ const Row = ({ label, value, testId, strong }: RowProps) => (
  * `422` of a coupon edited straight into the URL, which points at the field
  * instead of looking like a generic outage.
  */
-export const CartSummary = ({ quote, count }: CartSummaryProps) => {
+export const CartSummary = ({ quote, count, coupon }: CartSummaryProps) => {
   if (quote.isPending) return <SummarySkeleton />
 
   if (quote.isError) {
@@ -112,7 +114,9 @@ export const CartSummary = ({ quote, count }: CartSummaryProps) => {
       </div>
 
       <Button asChild className="mt-1 w-full" data-testid="carrinho-finalizar">
-        <Link to="/checkout">Finalizar compra</Link>
+        <Link to="/checkout" search={{ coupon }}>
+          Finalizar compra
+        </Link>
       </Button>
 
       <p className="text-xs text-muted-foreground">

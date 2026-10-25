@@ -2,15 +2,11 @@ import { http, HttpResponse } from 'msw'
 
 import type {
   CouponValidation,
-  QuoteAlert,
-  QuoteLine,
   QuoteResponse,
 } from '@/features/cart/api/contracts'
-import { NETWORK_FEE_PER_UNIT } from '@/features/cart/api/contracts'
-import { multiplyEth, percentOf, subtractEth, sumEth } from '@/lib/money'
-import { db } from '@/mocks/db'
 import { findCoupon, isExpired, normalizeCoupon } from '@/mocks/fixtures/coupons'
 import { errorEnvelope } from '@/mocks/handlers/envelope'
+import { priceItems } from '@/mocks/pricing'
 
 /**
  * Quote and coupon handlers (docs/PLAN.md → Seção 7).
@@ -57,53 +53,15 @@ const quoteHandler = http.get('/api/quote', ({ request }) => {
     })
   }
 
-  // A coupon only reaches the URL after `POST /api/coupons/validate`, so a
-  // rejection here means the address was edited by hand: point at the field
-  // instead of breaking the whole screen with a generic failure.
-  const code = normalizeCoupon(url.searchParams.get('coupon') ?? '')
-  let coupon: CouponValidation | null = null
-  if (code) {
-    const record = findCoupon(code)
-    if (!record) return couponError('Cupom inválido.')
-    if (isExpired(record)) return couponError('Cupom expirado.')
-    coupon = { code: record.code, percent: record.percent, description: record.description }
+  // The exact same pricing routine the order handler revalidates with, so the
+  // summary the user reviewed and the snapshot that gets charged agree.
+  const result = priceItems(items, url.searchParams.get('coupon'))
+  if (!result.ok) {
+    const { status, code, message, fields } = result.error
+    return errorEnvelope(status, code, message, fields)
   }
 
-  const alerts: QuoteAlert[] = []
-  if (db.scenario === 'price-changed') alerts.push('price-changed')
-
-  const lines: QuoteLine[] = []
-  for (const item of items) {
-    const nft = db.nfts.find((candidate) => candidate.id === item.nftId)
-    if (!nft) {
-      return errorEnvelope(404, 'NOT_FOUND', 'NFT não encontrado.')
-    }
-    if (item.quantity > nft.available) alerts.push('availability-changed')
-    lines.push({
-      nftId: nft.id,
-      quantity: item.quantity,
-      unitPrice: nft.priceEth,
-      lineTotal: multiplyEth(nft.priceEth, item.quantity),
-      available: nft.available,
-    })
-  }
-
-  const count = items.reduce((total, item) => total + item.quantity, 0)
-  const subtotal = sumEth(lines.map((line) => line.lineTotal))
-  const discount = coupon ? percentOf(subtotal, Number(coupon.percent)) : '0'
-  const networkFee = multiplyEth(NETWORK_FEE_PER_UNIT, count)
-  const total = subtractEth(sumEth([subtotal, networkFee]), discount)
-
-  const body: QuoteResponse = {
-    lines,
-    count,
-    subtotal,
-    discount,
-    networkFee,
-    total,
-    coupon,
-    alerts: alerts.filter((alert, index) => alerts.indexOf(alert) === index),
-  }
+  const body: QuoteResponse = result.quote
   return HttpResponse.json(body)
 })
 

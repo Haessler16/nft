@@ -67,7 +67,8 @@ desenvolvimento, demonstração e testes.
 - [x] Fixtures de usuários: 2 contas demo determinísticas derivadas das
       credenciais — `src/mocks/fixtures/users.ts`
 - [x] Fixtures de cupons (2 válidos + 1 expirado) — `src/mocks/fixtures/coupons.ts`
-- [ ] Fixtures restantes: carteiras, pedidos
+- [x] Fixtures de carteiras (principal + secundária por conta)
+- [x] Pedidos: criados em runtime pelo handler (snapshot no `db`), sem fixture fixa
 - [x] `src/mocks/db.ts`: estado único persistido em `localStorage` + `resetDatabase()`
       exposto em `POST /api/__mock/reset` (usado pelos testes)
 - [x] Handlers de catálogo: `GET /api/nfts` (busca/filtros/ordenação/paginação/facets)
@@ -76,15 +77,19 @@ desenvolvimento, demonstração e testes.
       favoritos e carrinho
 - [x] Handlers REST restantes: cotação (`GET /api/quote`) e cupons
       (`POST /api/coupons/validate`) — `handlers/quote.ts`
-- [ ] Handlers REST restantes: pedidos, perfil, carteiras
+- [x] Handlers de pedidos (`POST /api/orders` idempotente, `GET /api/orders`
+      (histórico), `GET /:id`, `GET /by-key/:key`)
+- [x] Handlers de carteiras (`GET /api/wallets`, `POST /api/wallets/connect`)
+- [ ] Handlers REST restantes: perfil e CRUD de carteiras (Seção 11)
 - [x] Envelope de erro único (`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`,
       `NOT_FOUND`, `CONFLICT`, `UNAVAILABLE`, `INTERNAL`) em `handlers/envelope.ts`
 - [ ] Cenários determinísticos selecionáveis por env/console:
       `default`, `slow`, `empty`, `flaky`, `session-expired`, `conflict`,
       `coupon-invalid`, `price-changed`, `sold-out`, `order-timeout`,
       `payment-declined` (prontos: `default`, `flaky`, `session-expired`,
-      `price-changed`, `sold-out` — os dois últimos alteram os dados no `db`,
-      então catálogo, detalhe, carrinho e cotação concordam entre si)
+      `price-changed`, `sold-out`, `order-timeout`, `payment-declined` — os dois
+      de preço/disponibilidade alteram os dados no `db`, então catálogo,
+      detalhe, carrinho e cotação concordam entre si)
 - [ ] Latência variável e respostas fora de ordem; falhas de conexão e 5xx
 - [x] Reset de cenário sem reload (`POST /api/__mock/scenario`) + documentação dos
       cenários implementados no README
@@ -104,11 +109,14 @@ fictício em componentes/hooks/axios.
 - [x] Tipos base (`EthAmount` string, `Quantity` inteiro, `Paginated`, meta)
 - [x] Fábrica de query keys com escopo por usuário
 - [ ] `contracts.ts` por feature: `auth`, `nfts`, `favorites`, `cart`, `quote`,
-      `orders`, `profile`, `wallets` (feitos: `auth`, `nfts`, `favorites`, `cart`)
+      `orders`, `profile`, `wallets` (feitos: `auth`, `nfts`, `favorites`, `cart`,
+      `orders`, `wallets`; falta `profile`)
 - [ ] Funções de endpoint (Axios) por feature, todas recebendo `signal`
-      (feitas para `auth`, `nfts`, `favorites`, `cart`)
-- [ ] Query options/mutations reutilizáveis (`queryOptions`, `mutationOptions`)
-- [ ] Invalidação padronizada após mutation e após evento de socket
+      (feitas para `auth`, `nfts`, `favorites`, `cart`, `orders`, `wallets`; falta
+      `profile`)
+- [x] Query options/mutations reutilizáveis (`queryOptions`, `mutationOptions`)
+- [x] Invalidação padronizada após mutation (carrinho, favoritos, pedido)
+- [ ] Invalidação/integração após evento de socket (Seção 10)
 - [x] Documentar tabela de endpoints no `ARCHITECTURE.md`
 
 **Aceite:** nenhuma resposta HTTP é tipada como `any`; o mesmo tipo é usado pelo
@@ -207,20 +215,28 @@ não pode ser comprado.
 
 ## Seção 8 — Checkout, carteiras e pedido idempotente
 
-- [ ] Formulário do colecionador (validação zod + erros da API)
-- [ ] Seleção de carteira cadastrada + rede, com simulação de conexão, recusa e
-      desconexão
-- [ ] Revisão antes do envio (snapshot do pedido)
-- [ ] Revalidação de preço, disponibilidade, cupom e taxas; mudanças exigem nova
-      confirmação explícita
-- [ ] `POST /orders` com `Idempotency-Key` persistida; cliques repetidos e reenvio
-      após timeout recuperam o mesmo pedido
-- [ ] Estados pendente / confirmado / recusado, com recuperação após refresh ou
-      reconexão
-- [ ] Falha preserva itens; sucesso remove só o que foi comprado
+- [x] Formulário do colecionador (validação zod + erros da API mapeados por campo)
+- [x] Seleção de carteira cadastrada + rede, com simulação de conexão, recusa e
+      desconexão (`POST /api/wallets/connect`)
+- [x] Revisão antes do envio (snapshot do pedido em diálogo com foco controlado)
+- [x] Revalidação de preço, disponibilidade, cupom e taxas; mudanças exigem nova
+      confirmação explícita (`Confirmar novo total`) e o servidor também recusa
+      `expectedTotal` divergente
+- [x] `POST /orders` com `Idempotency-Key` persistida; cliques repetidos e reenvio
+      após timeout recuperam o mesmo pedido (recuperação por `by-key` antes de
+      qualquer novo POST; mesma chave + conteúdo diferente → `409`)
+- [x] Estados pendente / confirmado / recusado, com recuperação após refresh ou
+      reconexão (poll só enquanto pendente; pedido ativo persistido por escopo)
+- [x] Falha preserva itens; sucesso remove só o que foi comprado (baixa de
+      estoque e remoção de quantidade no `db` ao confirmar)
+- [x] Sessão expirada no envio volta ao login com `/checkout` como destino
 
 **Aceite:** impossível confirmar com cotação desatualizada; impossível criar dois
 pedidos pelo mesmo fluxo; recusa não gera recibo confirmado.
+
+**Verificação:** `e2e/checkout.spec.ts` cobre compra completa, clique repetido,
+preço alterado durante a revisão, pagamento recusado, timeout com recuperação,
+recusa de rede pela carteira, validação do formulário e sessão expirada.
 
 **Depende de:** Seção 7.
 
@@ -228,14 +244,27 @@ pedidos pelo mesmo fluxo; recusa não gera recibo confirmado.
 
 ## Seção 9 — Pedido, recibo e histórico
 
-- [ ] Recibo a partir do snapshot do pedido (imutável após mudanças no catálogo)
-- [ ] Identificação da transação, links de exploração simulados, itens, taxas, total
-- [ ] Página de pedido acessível por URL, terminal quando confirmado/recusado
-- [ ] Histórico de pedidos na conta
+- [x] Recibo a partir do snapshot do pedido (imutável após mudanças no catálogo)
+      — `OrderReceipt` renderiza só o que foi congelado na criação
+- [x] Identificação da transação, links de exploração simulados, itens, taxas,
+      total — meta de 4 células + tabela “Detalhes da transação” do frame
+- [x] Página de pedido acessível por URL (`/orders/$orderId`), terminal quando
+      confirmado/recusado; pendente faz poll até o estado final; id inexistente
+      ou de outro usuário responde `404` sem vazar existência
+- [x] Histórico de pedidos na conta (`/account/orders`) via `GET /api/orders`,
+      com skeleton, vazio, erro com retry e isolamento por sessão
 - [ ] `order.updated` atualizando a tela e liberando a confirmação
+      (chega na Seção 10; hoje o poll do `orderQueryOptions` entrega o mesmo
+      comportamento pelo REST)
 
 **Aceite:** refresh no recibo mantém valores originais; pedido de outro usuário
 retorna `FORBIDDEN`/404.
+
+**Verificação:** `e2e/orders.spec.ts` cobre histórico vazio→lista→recibo,
+      imutabilidade do snapshot após `price-changed`, transição
+      pendente→confirmado pelo recibo sem duplicar pedido, recibo recusado sem
+      transação, isolamento entre contas + id inexistente e acesso direto sem
+      sessão (retorno ao login).
 
 **Depende de:** Seção 8.
 

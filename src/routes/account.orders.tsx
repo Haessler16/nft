@@ -1,28 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { requireSession } from '@/app/guards'
-import { RoutePlaceholder } from '@/components/feedback/route-placeholder'
+import { useSession } from '@/app/session/hooks'
+import { OrdersHistoryScreen } from '@/features/orders/components/orders-history-screen'
 
+/** `/account/orders` (docs/PLAN.md → Seção 9) — private order history. */
 export const Route = createFileRoute('/account/orders')({
   beforeLoad: requireSession,
-  head: () => ({
-    meta: [{ title: 'Meus pedidos — NFT Market' }],
-  }),
+  head: () => ({ meta: [{ title: 'Meus pedidos — KURIO' }] }),
   component: OrdersRoute,
 })
 
 function OrdersRoute() {
-  return (
-    <RoutePlaceholder
-      title="Meus pedidos"
-      path="/account/orders"
-      section="docs/PLAN.md → Seção 9"
-      requirements={[
-        'Lista dos pedidos do usuário autenticado, com estado e total',
-        'Acesso ao recibo de cada pedido',
-        'Estados de carregamento, vazio e erro com retry',
-        'Atualização por order.updated sem duplicar pedidos na lista',
-      ]}
-    />
-  )
+  const { scope } = useSession()
+
+  return <OrdersHistoryScreen scope={scope} />
 }

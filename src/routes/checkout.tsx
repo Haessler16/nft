@@ -1,31 +1,31 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
 
 import { requireSession } from '@/app/guards'
-import { RoutePlaceholder } from '@/components/feedback/route-placeholder'
+import { CheckoutScreen } from '@/features/checkout/components/checkout-screen'
+
+/**
+ * `/checkout` (docs/PLAN.md → Seção 8).
+ *
+ * Private flow: the guard sends an expired session to `/login` carrying this
+ * URL (including the applied coupon), so the purchase resumes exactly where it
+ * stopped. The coupon lives in the search for the same reason as in `/cart`:
+ * a refresh or a shared link must reproduce the same quote.
+ */
+const checkoutSearchSchema = z.object({
+  coupon: z.string().trim().min(1).optional().catch(undefined),
+})
 
 export const Route = createFileRoute('/checkout')({
-  // Private flow: an expired session is sent to /login carrying this URL, so
-  // the purchase resumes here after authentication (docs/PLAN.md → Seção 4).
+  validateSearch: checkoutSearchSchema,
   beforeLoad: requireSession,
   head: () => ({
-    meta: [{ title: 'Pagamento — NFT Market' }],
+    meta: [{ title: 'Pagamento — KURIO' }],
   }),
   component: CheckoutRoute,
 })
 
 function CheckoutRoute() {
-  return (
-    <RoutePlaceholder
-      title="Pagamento"
-      path="/checkout"
-      section="docs/PLAN.md → Seção 8"
-      requirements={[
-        'Rota privada: exige sessão, com retorno ao fluxo após autenticar',
-        'Dados do colecionador validados, com erros de campo associados',
-        'Seleção de carteira cadastrada e rede, com conexão, recusa e desconexão simuladas',
-        'Revisão do pedido e revalidação de preço, disponibilidade, cupom e taxas',
-        'Criação idempotente do pedido: cliques repetidos e timeout não duplicam a compra',
-      ]}
-    />
-  )
+  const { coupon } = Route.useSearch()
+  return <CheckoutScreen coupon={coupon} />
 }

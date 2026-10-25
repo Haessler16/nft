@@ -213,7 +213,7 @@ export const CartScreen = ({
               Resumo do pedido
             </h2>
             <div className="mt-3">
-              <CartSummary quote={quote} count={cart.count} />
+              <CartSummary quote={quote} count={cart.count} coupon={coupon} />
             </div>
           </section>
         </aside>

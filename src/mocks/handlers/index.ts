@@ -1,12 +1,22 @@
 import { http, HttpResponse } from 'msw'
 
+import type { RealtimeEvent } from '@/lib/realtime'
+import { isRealtimeEvent } from '@/lib/realtime'
 import { db } from '@/mocks/db'
 import { cartHandlers } from '@/mocks/handlers/cart'
 import { errorEnvelope } from '@/mocks/handlers/envelope'
 import { favoriteHandlers } from '@/mocks/handlers/favorites'
 import { nftHandlers } from '@/mocks/handlers/nfts'
+import { orderHandlers } from '@/mocks/handlers/orders'
 import { quoteHandlers } from '@/mocks/handlers/quote'
 import { sessionHandlers } from '@/mocks/handlers/session'
+import { walletHandlers } from '@/mocks/handlers/wallets'
+import {
+  publishNftChanges,
+  publishRealtime,
+  realtimeHandlers,
+  setRealtimeRelay,
+} from '@/mocks/realtime'
 
 /**
  * MSW request handlers.
@@ -44,17 +54,71 @@ const scenarioHandler = http.post('/api/__mock/scenario', async ({ request }) =>
       scenario: 'Cenário obrigatório.',
     })
   }
+  const before = db.nfts
   const state = db.setScenario(scenario)
+  // Data scenarios change the catalog: every affected edition announces
+  // itself over the socket so open tabs update without a reload (Seção 10).
+  publishNftChanges(before, state.nfts)
   return HttpResponse.json({ ok: true, scenario: state.scenario })
 })
+
+/**
+ * Injects a crafted realtime event (Seção 10 instrumentation).
+ *
+ * Used by the E2E suite to deliver a duplicate or an out-of-order event —
+ * impossible to produce deterministically through the normal flows. The event
+ * still travels the real path (publish → socket.io → client); only its version
+ * is supplied by the caller.
+ */
+const injectEventHandler = http.post('/api/__mock/event', async ({ request }) => {
+  const body = (await request.json().catch(() => null)) as { event?: unknown } | null
+  const candidate = body?.event
+  if (!isRealtimeEvent(candidate)) {
+    return errorEnvelope(422, 'VALIDATION_ERROR', 'Evento inválido.', {
+      event: 'Envie { event: { type, resourceId, version, payload } }.',
+    })
+  }
+  const event = candidate as RealtimeEvent
+  publishRealtime({
+    ...event,
+    occurredAt: event.occurredAt || new Date().toISOString(),
+  })
+  return HttpResponse.json({ ok: true, delivered: event.version })
+})
+
+/**
+ * Simulates a realtime outage or its recovery (Seção 10 instrumentation).
+ * `outage` drops every open socket and refuses new ones; `restore` lets the
+ * client reconnect with its own backoff. REST keeps working either way, which
+ * is exactly what the pending-order recovery scenario needs.
+ */
+const realtimeControlHandler = http.post(
+  '/api/__mock/realtime',
+  async ({ request }) => {
+    const body = (await request.json().catch(() => null)) as { action?: unknown } | null
+    const action = body?.action
+    if (action !== 'outage' && action !== 'restore') {
+      return errorEnvelope(422, 'VALIDATION_ERROR', 'Ação inválida.', {
+        action: 'Use "outage" ou "restore".',
+      })
+    }
+    setRealtimeRelay(action === 'restore')
+    return HttpResponse.json({ ok: true, action })
+  },
+)
 
 export const handlers = [
   healthHandler,
   resetHandler,
   scenarioHandler,
+  injectEventHandler,
+  realtimeControlHandler,
+  ...realtimeHandlers,
   ...sessionHandlers,
   ...favoriteHandlers,
   ...cartHandlers,
   ...quoteHandlers,
+  ...walletHandlers,
+  ...orderHandlers,
   ...nftHandlers,
 ]

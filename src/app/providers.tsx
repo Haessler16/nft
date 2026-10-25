@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import type { ReactNode } from 'react'
 
 import { SessionProvider } from '@/app/session/provider'
+import { RealtimeProvider } from '@/app/realtime/provider'
 import { Toaster } from '@/components/ui/sonner'
 import { queryClient } from '@/lib/query/client'
 
@@ -16,6 +17,8 @@ export const AppProviders = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={queryClient}>
     <SessionProvider>
       {children}
+      {/* Reads the session above; one socket per tab, torn down on unmount. */}
+      <RealtimeProvider />
       <Toaster position="top-right" closeButton />
       {import.meta.env.DEV ? (
         <ReactQueryDevtools buttonPosition="bottom-left" initialIsOpen={false} />

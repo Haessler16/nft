@@ -23,9 +23,9 @@ Regras:
 - chaves de cache sempre vêm de `src/lib/query/keys.ts` (escopo por usuário);
 - ETH nunca é `number`: entra e sai como string decimal, aritmética em `decimal.js`.
 
-Estado atual: `nfts` já tem `api/contracts.ts`, `api/endpoints.ts`, `api/queries.ts`,
-`catalog-search.ts` (estado na URL) e os componentes do catálogo/home. As demais
-features chegam nas seções do plano.
+Estado atual: `auth`, `nfts`, `favorites`, `cart`, `checkout`, `orders` e
+`wallets` já têm contratos/endpoints/queries e componentes onde a seção aplica.
+`profile` chega na Seção 11; realtime na Seção 10.
 
 Features planejadas (ver [docs/PLAN.md](../../docs/PLAN.md)):
 
@@ -35,8 +35,8 @@ Features planejadas (ver [docs/PLAN.md](../../docs/PLAN.md)):
 | `nfts` | 5, 6 | catálogo, busca/filtros (feito); detalhe e galeria pendentes |
 | `favorites` | 6 | favoritos com atualização otimista |
 | `cart` | 7 | itens, quantidades, cupom, resumo |
-| `checkout` | 8 | formulário, carteira/rede, idempotência |
-| `orders` | 9 | recibo imutável, histórico, estado do pedido |
+| `checkout` | 8 | formulário, carteira/rede, revisão, idempotência (feito) |
+| `orders` | 8, 9 | criação/consulta idempotente, recibo em `/orders/:id` e histórico (feito); `order.updated` na Seção 10 |
 | `profile` | 11 | dados do colecionador, avatar, senha |
-| `wallets` | 11 | carteira principal e secundária |
+| `wallets` | 8, 11 | listagem e conexão simulada (feito); CRUD pendente |
 | `realtime` | 10 | cliente Socket.IO, reconciliação, versões |

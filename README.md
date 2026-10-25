@@ -9,9 +9,10 @@ O enunciado do desafio está em [BRIEF.md](BRIEF.md), o plano de execução em
 [docs/PLAN.md](docs/PLAN.md) e as decisões técnicas em
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
-> **Status:** fundação, design system, início (catálogo), autenticação/sessão
-> (Seção 4) e detalhe do NFT com favoritos (Seção 6) implementados. As demais
-> telas são placeholders navegáveis que listam seus comportamentos obrigatórios.
+> **Status:** fundação, design system, catálogo, autenticação/sessão, detalhe
+> com favoritos, carrinho/cotação, checkout com pedido idempotente e recibo com
+> histórico (Seções 0–9) implementados. Perfil e carteiras ainda são
+> placeholders navegáveis que listam seus comportamentos obrigatórios.
 > Nenhuma transação real é executada.
 
 ## Stack
@@ -97,8 +98,11 @@ src/
   features/
     auth/         contratos, endpoints, mutations de sessão + credenciais demo
     cart/         contratos, endpoints, queries, cotação, cupom e tela do carrinho
+    checkout/     schema do formulário, tela, revisão e painel do pedido
     favorites/    contratos, endpoints, queries e toggle otimista
     nfts/         contratos, endpoints, queries, busca ao vivo na URL e componentes
+    orders/       contratos do snapshot, endpoints, query com poll, recibo e histórico
+    wallets/      contratos, endpoints, queries e simulação de conexão
   lib/            api (Axios + erros + tipos), query (client + keys + ensure), dinheiro, env
   mocks/          MSW: db, fixtures (nfts, usuários, cupons), handlers
   routes/         rotas file-based (routeTree.gen.ts é gerado)
@@ -116,11 +120,11 @@ nft img/          frames originais do design (referência)
 | `/nfts/$nftId` | Detalhe do NFT (galeria, quantidade, favoritos, coleção) | **implementada** |
 | `/login`, `/register` | Login e cadastro (com `redirect` de retorno) | **implementada** |
 | `/cart` | Carrinho (itens, quantidade, cupom, resumo da cotação) | **implementada** |
-| `/checkout` | Pagamento | placeholder (**privada**) |
-| `/orders/$orderId` | Confirmação / recibo | placeholder (**privada**) |
+| `/checkout` | Pagamento: perfil, carteira/rede, revisão e pedido | **implementada** (**privada**) |
+| `/orders/$orderId` | Confirmação / recibo completo (snapshot imutável) | **implementada** (**privada**) |
 | `/account` → `/account/profile` | Perfil do colecionador | placeholder (**privada**) |
 | `/account/wallets` | Carteiras | placeholder (**privada**) |
-| `/account/orders` | Meus pedidos | placeholder (**privada**) |
+| `/account/orders` | Meus pedidos (histórico com estados) | **implementada** (**privada**) |
 | `*` | 404 dentro do shell | implementado |
 
 Rotas marcadas como **privadas** passam pela guarda de `beforeLoad`
@@ -160,19 +164,55 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
   escopo de sessão: o carrinho do visitante é mesclado na conta no login e o
   contador acompanha a troca.
 
+## Checkout, carteiras e pedidos
+
+- `/checkout` (privada) segue o frame de Pagamento: perfil do colecionador em
+  duas colunas, itens, valores, carteira/rede e a ação principal.
+- **Carteiras:** `GET /api/wallets` traz as carteiras registradas da conta
+  (seed: uma principal e uma secundária). A conexão é simulada pelo handler
+  (`POST /api/wallets/connect`): MetaMask assina Ethereum/Polygon, Coinbase
+  Wallet Ethereum/Solana e WalletConnect as três. Escolher Solana com MetaMask
+  é a forma determinística de ver a **recusa** (“não assina na rede”);
+  `Desconectar` encerra a conexão, e trocar de rede exige conectar de novo.
+- **Revisão:** “Revisar pedido” abre o snapshot (dados, carteira, itens, taxas,
+  total). “Confirmar compra” revalida `GET /api/quote`: se o total mudou, o
+  botão vira “Confirmar novo total” e **nada é enviado** até um segundo clique;
+  se uma edição esgotou, a compra é bloqueada e o carrinho precisa ser ajustado.
+- **Idempotência:** a `Idempotency-Key` é criada e persistida antes do POST
+  (`kurio:checkout:key:<escopo>`, vinculada ao fingerprint de itens + cupom +
+  total). Clique repetido e Enter duplo são barrados; timeout/rede recupera o
+  pedido por `GET /api/orders/by-key/:key` antes de qualquer novo envio. Mesma
+  chave + conteúdo diferente responde `409`, então nunca nasce um segundo pedido.
+- **Estados:** `pending` → `confirmed` ou `declined` (terminais). O painel
+  consulta `GET /api/orders/:id` a cada 700 ms enquanto pendente e para no
+  estado final. Confirmado baixa o estoque, remove **só as quantidades
+  compradas** do carrinho e mostra hash/explorador simulados; recusado preserva
+  os itens e oferece voltar ao carrinho.
+- **Retomada:** recarregar `/checkout` reabre o pedido ativo
+  (`kurio:checkout:order:<escopo>`) em vez de um carrinho vazio. “Fazer outro
+  pedido” limpa o registro. Sessão expirada no envio leva a
+  `/login?redirect=/checkout`, sem criar pedido.
+- Valores do recibo são o **snapshot** gravado na criação: mudanças posteriores
+  no catálogo não alteram um pedido existente.
+
 ## Dados simulados
 
 - O estado vive em [src/mocks/db.ts](src/mocks/db.ts), é persistido em
   `localStorage` e compartilhado por todos os handlers.
 - `POST /api/__mock/reset` restaura o seed determinístico (30 NFTs, 9 categorias,
-  3 redes, 5 páginas, 2 contas demo). Os testes E2E chamam esse endpoint a cada cenário.
+  3 redes, 5 páginas, 2 contas demo, carteiras e lista de pedidos vazia). Os
+  testes E2E chamam esse endpoint a cada cenário.
 - Handlers atuais: catálogo (`GET /api/nfts`, `GET /api/nfts/:nftId`), sessão
   (`GET /api/session`, `POST /api/auth/{login,register,logout}`), favoritos
   (`GET|PUT|DELETE /api/favorites[/:nftId]`), carrinho (`GET /api/cart`,
   `POST /api/cart/items`, `PATCH|DELETE /api/cart/items/:nftId`), cotação e
-  cupons (`GET /api/quote`, `POST /api/coupons/validate`) e controle dos
-  mocks (`GET /api/health`, `POST /api/__mock/reset`, `POST /api/__mock/scenario`).
-  A tabela completa está em [ARCHITECTURE.md](ARCHITECTURE.md).
+  cupons (`GET /api/quote`, `POST /api/coupons/validate`), carteiras
+  (`GET /api/wallets`, `POST /api/wallets/connect`), pedidos
+  (`POST /api/orders`, `GET /api/orders` (histórico), `GET /api/orders/:id`,
+  `GET /api/orders/by-key/:key`) e
+  controle dos mocks (`GET /api/health`, `POST /api/__mock/reset`,
+  `POST /api/__mock/scenario`). A tabela completa está em
+  [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Cenários** (`VITE_MOCK_SCENARIO` no boot, ou `POST /api/__mock/scenario`
   `{ "scenario": "…" }` em runtime, sem reload):
 
@@ -183,9 +223,17 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
   | `session-expired` | `GET /api/session` revoga a sessão ativa com `401` (guarda leva ao login preservando o destino) |
   | `price-changed` | preços do catálogo +10% a partir do seed e a cotação devolve `alerts: ["price-changed"]` (banner no carrinho) |
   | `sold-out` | nenhuma unidade disponível: quantidade bloqueada, cotação devolve `alerts: ["availability-changed"]` |
+  | `payment-declined` | o pedido é criado e liquida em `declined` (nada é cobrado, carrinho preservado) |
+  | `order-timeout` | o primeiro POST cria o pedido e responde `504` (resposta perdida); a recuperação por chave de idempotência devolve o mesmo pedido |
 
-  Os dois últimos alteram **os dados** no `db` (semente + transformação), então
-  catálogo, detalhe, carrinho e cotação sempre mostram os mesmos números.
+  `price-changed` e `sold-out` alteram **os dados** no `db` (semente +
+  transformação), então catálogo, detalhe, carrinho e cotação sempre mostram os
+  mesmos números. `flaky` também derruba o handshake da carteira (`503`).
+
+  Fluxos determinísticos para demonstrar: `?coupon=KURIO10` no carrinho;
+  `price-changed` aplicado com o diálogo de revisão aberto (novo total exige
+  confirmação); `payment-declined` antes de confirmar; `order-timeout` antes de
+  confirmar; Solana + MetaMask no checkout para a recusa da carteira.
 
 ## Assets e design
 
