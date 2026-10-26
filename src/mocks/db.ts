@@ -8,7 +8,11 @@ import { percentOf, sumEth } from '@/lib/money'
 import { hashPassword } from '@/mocks/fixtures/users'
 import { buildNfts } from '@/mocks/fixtures/nfts'
 import { USERS, type UserFixture } from '@/mocks/fixtures/users'
-import { WALLETS, type WalletFixture } from '@/mocks/fixtures/wallets'
+import {
+  PROVIDER_NETWORKS,
+  WALLETS,
+  type WalletFixture,
+} from '@/mocks/fixtures/wallets'
 import { env } from '@/lib/env'
 import { GUEST_SCOPE } from '@/lib/query/keys'
 
@@ -278,9 +282,16 @@ export const db = {
     const wallet: WalletFixture = {
       id: `wal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       ...input,
-      supportedNetworks: WALLETS[0]?.supportedNetworks ?? [],
+      // The provider decides which networks this address can sign for; the new
+      // wallet must not inherit the demo seed's MetaMask capabilities.
+      supportedNetworks: [...PROVIDER_NETWORKS[input.provider]],
     }
-    update((current) => ({ wallets: [...current.wallets, wallet] }))
+    const wallets = input.primary
+      ? state.wallets.map((candidate) =>
+          candidate.userId === input.userId ? { ...candidate, primary: false } : candidate,
+        )
+      : [...state.wallets]
+    update(() => ({ wallets: [...wallets, wallet] }))
     return wallet
   },
   updateWallet(
@@ -288,11 +299,18 @@ export const db = {
     walletId: string,
     patch: Partial<Pick<WalletFixture, 'label' | 'provider' | 'address' | 'network' | 'primary'>>,
   ): WalletFixture | undefined {
-    const wallets = state.wallets.map((wallet) =>
-      wallet.userId === userId && wallet.id === walletId
-        ? { ...wallet, ...patch }
-        : wallet,
-    )
+    const wallets = state.wallets.map((wallet) => {
+      if (wallet.userId !== userId) return wallet
+      // Only one primary per collector: promoting a wallet demotes the rest.
+      if (patch.primary === true && wallet.id !== walletId) {
+        return { ...wallet, primary: false }
+      }
+      if (wallet.id !== walletId) return wallet
+      const next = { ...wallet, ...patch }
+      // Network capabilities follow the provider, not the previous wallet.
+      if (patch.provider) next.supportedNetworks = [...PROVIDER_NETWORKS[patch.provider]]
+      return next
+    })
     const wallet = wallets.find(
       (candidate) => candidate.userId === userId && candidate.id === walletId,
     )

@@ -1,38 +1,37 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import {
-  changePassword,
-  type ChangePasswordError,
-  PASSWORD_FIELD_ERRORS,
-  isApiError,
-} from '@/features/profile/api/endpoints'
-import { updateProfile } from '@/features/profile/api/endpoints'
+import { changePassword, updateProfile } from '@/features/profile/api/endpoints'
+import { isApiError } from '@/lib/api/errors'
 import { queryKeys, type UserScope } from '@/lib/query/keys'
 
 /**
- * Atualiza o perfil do usuário autenticado e invalida o cache do perfil.
+ * Atualiza o perfil do usuário autenticado.
  *
- * O sucesso aciona o `aria-live` do formulário via `toast.success`; o erro
- * de API é mostrado no toast porque o formulário já mostra os erros de campo
- * vindos do schema, e o erro de servidor é um estado global.
+ * Invalida o perfil e a sessão: o nome/e-mail/avatar também aparecem no
+ * cabeçalho, que lê `['session']`, então as duas entradas precisam concordar
+ * logo depois do "Salvar". Erros de campo (e-mail já cadastrado) voltam como
+ * `ApiError.fields`; o editor mantém os valores digitados e o toast mostra a
+ * mensagem do envelope.
  */
 export const useUpdateProfile = (scope: UserScope) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: Parameters<typeof updateProfile>[0]) =>
-      updateProfile(input),
+    mutationFn: (input: Parameters<typeof updateProfile>[0]) => updateProfile(input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile.byUser(scope) })
-      toast.success('Datos actualizados.')
+      void queryClient.invalidateQueries({ queryKey: queryKeys.session() })
+      toast.success('Dados atualizados.')
     },
     onError: (error) => {
-      if (isApiError(error)) {
-        toast.error(error.message)
-      } else {
-        toast.error('No se pudieron actualizar los datos.')
+      if (isApiError(error) && error.hasFieldErrors) {
+        toast.error(Object.values(error.fields)[0] ?? error.message)
+        return
       }
+      toast.error(
+        isApiError(error) ? error.message : 'Não foi possível atualizar os dados.',
+      )
     },
   })
 }
@@ -40,8 +39,9 @@ export const useUpdateProfile = (scope: UserScope) => {
 /**
  * Troca a senha com reautenticação (docs/PLAN.md → Seção 11).
  *
- * O contrato retorna `CURRENT_WRONG` ou `NEW_WEAK`; a mutação transforma
- * isso em feedback de campo via toast, igual ao que o formulário espera.
+ * O handler responde `422` com o campo culpado (`currentPassword` ou
+ * `newPassword`); o formulário lê esse `ApiError.fields` e mostra o erro sob o
+ * input. Só falhas sem campo viram toast.
  */
 export const useChangePassword = (scope: UserScope) => {
   const queryClient = useQueryClient()
@@ -56,32 +56,13 @@ export const useChangePassword = (scope: UserScope) => {
     }) => changePassword(currentPassword, newPassword),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile.byUser(scope) })
-      toast.success('Contraseña actualizada.')
+      toast.success('Senha atualizada.')
     },
     onError: (error: unknown) => {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'error' in error &&
-        typeof (error as ChangePasswordError).error === 'string'
-      ) {
-        const typed = error as ChangePasswordError
-        toast.error(
-          typed.error === 'CURRENT_WRONG'
-            ? PASSWORD_FIELD_ERRORS.current
-            : PASSWORD_FIELD_ERRORS.new,
-        )
-      } else if (isApiError(error)) {
-        toast.error(error.message)
-      } else {
-        toast.error('No se pudo actualizar la contraseña.')
-      }
+      if (isApiError(error) && error.hasFieldErrors) return
+      toast.error(
+        isApiError(error) ? error.message : 'Não foi possível atualizar a senha.',
+      )
     },
   })
-}
-
-/** Chaves auxiliares para subconsultas do perfil, no mesmo escopo privado. */
-export const profileQueryKeys = {
-  edit: (scope: UserScope) => [...queryKeys.profile.byUser(scope), 'edit'] as const,
-  password: (scope: UserScope) => [...queryKeys.profile.byUser(scope), 'password'] as const,
 }

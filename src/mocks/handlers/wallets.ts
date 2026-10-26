@@ -52,11 +52,14 @@ const validateWalletInput = (
 ): Record<string, string> => {
   const fields: Record<string, string> = {}
   if (typeof input.label === 'string') {
-    if (input.label.trim().length < 1) {
-      fields.label = 'Escolha o tipo de carteira.'
+    const label = input.label.trim()
+    if (label.length < 2) {
+      fields.label = 'O nome precisa ter ao menos 2 caracteres.'
+    } else if (label.length > 60) {
+      fields.label = 'Máximo de 60 caracteres.'
     }
   } else {
-    fields.label = 'Escolha o tipo de carteira.'
+    fields.label = 'Informe um nome para a carteira.'
   }
   if (typeof input.address !== 'string' || input.address.trim().length === 0) {
     fields.address = 'Informe o endereço da carteira.'
@@ -125,7 +128,14 @@ export const walletHandlers = [
       | null
 
     const input = body ?? {}
-    const fields = validateWalletInput(input)
+    // PUT is partial: validate the merged result so an update that only renames
+    // a wallet is not rejected for the fields it did not send.
+    const fields = validateWalletInput({
+      label: input.label ?? existing.label,
+      address: input.address ?? existing.address,
+      provider: input.provider ?? existing.provider,
+      network: input.network ?? existing.network,
+    })
     if (Object.keys(fields).length > 0) {
       return errorEnvelope(422, 'VALIDATION_ERROR', 'Dados da carteira inválidos.', fields)
     }

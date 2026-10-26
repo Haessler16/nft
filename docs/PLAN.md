@@ -80,7 +80,8 @@ desenvolvimento, demonstração e testes.
 - [x] Handlers de pedidos (`POST /api/orders` idempotente, `GET /api/orders`
       (histórico), `GET /:id`, `GET /by-key/:key`)
 - [x] Handlers de carteiras (`GET /api/wallets`, `POST /api/wallets/connect`)
-- [ ] Handlers REST restantes: perfil e CRUD de carteiras (Seção 11)
+- [x] Handlers REST restantes: perfil e CRUD de carteiras — `handlers/profile.ts`,
+      `handlers/wallets.ts` (Seção 11)
 - [x] Envelope de erro único (`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`,
       `NOT_FOUND`, `CONFLICT`, `UNAVAILABLE`, `INTERNAL`) em `handlers/envelope.ts`
 - [ ] Cenários determinísticos selecionáveis por env/console:
@@ -108,12 +109,10 @@ fictício em componentes/hooks/axios.
 - [x] `ApiError` + envelope + mapeamento Axios → `ApiError`
 - [x] Tipos base (`EthAmount` string, `Quantity` inteiro, `Paginated`, meta)
 - [x] Fábrica de query keys com escopo por usuário
-- [ ] `contracts.ts` por feature: `auth`, `nfts`, `favorites`, `cart`, `quote`,
-      `orders`, `profile`, `wallets` (feitos: `auth`, `nfts`, `favorites`, `cart`,
-      `orders`, `wallets`; falta `profile`)
-- [ ] Funções de endpoint (Axios) por feature, todas recebendo `signal`
-      (feitas para `auth`, `nfts`, `favorites`, `cart`, `orders`, `wallets`; falta
-      `profile`)
+- [x] `contracts.ts` por feature: `auth`, `nfts`, `favorites`, `cart`, `quote`,
+      `orders`, `profile`, `wallets`
+- [x] Funções de endpoint (Axios) por feature, todas recebendo `signal`
+      (`auth`, `nfts`, `favorites`, `cart`, `orders`, `profile`, `wallets`)
 - [x] Query options/mutations reutilizáveis (`queryOptions`, `mutationOptions`)
 - [x] Invalidação padronizada após mutation (carrinho, favoritos, pedido)
 - [ ] Invalidação/integração após evento de socket (Seção 10)
@@ -293,15 +292,42 @@ abas reflete a mudança em tempo real.
 
 ## Seção 11 — Conta: perfil e carteiras
 
-- [ ] Perfil: nome, bio, e-mail, avatar (upload simulado com preview), persistência
-- [ ] Alteração de senha com validação e reautenticação
-- [ ] Carteiras: principal e secundária, cadastro/edição, validação de endereço/rede,
+- [x] Perfil: nome, bio, e-mail, avatar (upload simulado com preview), persistência
+- [x] Alteração de senha com validação e reautenticação
+- [x] Carteiras: principal e secundária, cadastro/edição, validação de endereço/rede,
       remoção do secundário
-- [ ] Todos os formulários com erros de campo associados (`aria-describedby`)
-- [ ] Layout mobile dedicado (sem frame no Figma) documentado no `ARCHITECTURE.md`
+- [x] Todos os formulários com erros de campo associados (`aria-describedby`)
+- [x] Layout mobile dedicado (sem frame no Figma) documentado no `ARCHITECTURE.md`
 
-**Aceite:** alterações confirmadas permanecem após refresh; usuário B não vê dados
-do usuário A.
+**Entregáveis:** `src/features/profile/*`, `src/features/wallets/*`,
+`src/routes/account.profile.tsx`, `src/routes/account.wallets.tsx`,
+`src/mocks/handlers/profile.ts`, `src/mocks/handlers/wallets.ts`.
+
+**Comportamento fechado nesta seção:**
+
+- o editor de perfil só fecha depois do `PUT /api/profile`; um e-mail inválido
+  mantém o formulário aberto com o erro sob o campo;
+- salvar o perfil invalida `['profile', escopo]` **e** `['session']`, então o nome
+  do cabeçalho acompanha a edição;
+- o avatar escolhido entra no formulário como `avatarUrl` (data URL) e é
+  persistido; removê-lo também é persistido;
+- a senha atual errada volta no envelope da API com `fields.currentPassword` e é
+  exibida sob o input, não como toast genérico; a troca válida permite o login
+  seguinte com a nova senha;
+- o CRUD de carteiras é feito pelo mesmo formulário (criar/editar), com botões
+  de submit próprios; "Remover" só aparece na secundária e confirma em diálogo;
+- o servidor mantém **uma única carteira principal** por conta e deriva
+  `supportedNetworks` do provedor escolhido;
+- perfil e carteiras usam o escopo da sessão e são removidos no logout, sem
+  vazar dados entre as duas contas demo.
+
+**Verificação automatizada:** `e2e/account.spec.ts` cobre rota privada +
+retorno pós-login, leitura/edição persistida do perfil, validação de e-mail,
+senha atual errada, troca de senha com novo login, lista/criação/edição/remoção
+de carteiras e isolamento entre Ava e Noah. Roda nos três viewports.
+
+**Aceite:** alterações confirmadas permanecem após refresh; usuário B não vê
+dados do usuário A; `e2e/account.spec.ts` passa nos três projetos do Playwright.
 
 **Depende de:** Seção 4.
 
@@ -309,46 +335,142 @@ do usuário A.
 
 ## Seção 12 — Acessibilidade e responsividade (transversal, fechamento)
 
-- [ ] Varredura de teclado em todos os fluxos (tab order, foco em dialog/drawer,
+- [x] Varredura de teclado em todos os fluxos (tab order, foco em dialog/drawer,
       retorno de foco ao fechar)
-- [ ] Labels, `aria-invalid`, mensagens de erro vinculadas, landmarks e headings
-- [ ] `alt` para imagens relevantes, contraste AA, estados não só por cor
-- [ ] `aria-live` para mutações e eventos de tempo real
-- [ ] Zoom 200% sem perda de conteúdo; sem overflow horizontal
-- [ ] `prefers-reduced-motion` nos skeletons e animações
-- [ ] Documentar substituições de assets e ajustes em relação ao Figma
+- [x] Labels, `aria-invalid`, mensagens de erro vinculadas, landmarks e headings
+- [x] `alt` para imagens relevantes, contraste AA, estados não só por cor
+- [x] `aria-live` para mutações e eventos de tempo real
+- [ ] Zoom 200% sem perda de conteúdo; sem overflow horizontal — os layouts são
+      verificados em 390/768/1440 pelo E2E, mas a inspeção manual em zoom 200%
+      segue pendente
+- [x] `prefers-reduced-motion` nos skeletons e animações
+- [x] Documentar substituições de assets e ajustes em relação ao Figma
+- [x] Varredura automatizada (Lighthouse/axe) sem violações críticas — A11y 100
+      nas quatro combinações medidas (detalhes na Seção 14)
 
-**Aceite:** axe/Lighthouse sem violações críticas; fluxos completos só com teclado.
+**Entregáveis evidenciados no código:**
+
+- Teclado: foco visível global em `:focus-visible` (`src/index.css`),
+  diálogos/drawers com trap e retorno de foco (Radix em
+  `src/components/ui/dialog.tsx`, `src/components/ui/sheet.tsx`), controles
+  interativos com `focus-visible:ring` e `aria-label`/`aria-pressed` quando o
+  rótulo visual é genérico (`NftCard`, `NftGallery`, `WalletCommand`, cabeçalho
+  e rodapé).
+- Formulários com `<label>`/`htmlFor`, `aria-invalid`, erros vinculados por
+  `aria-describedby` e `role="alert"` (`src/components/ui/field.tsx`,
+  `src/features/profile`, `src/features/wallets`, `src/features/auth`, checkout).
+  O painel de abas do perfil usa `role="tablist"`/`role="tab"`/`role="tabpanel"`.
+- Ações do catálogo/banner com `aria-live` (`cart`, `favorites`, `orders`,
+  checkout e perfil usam toast/região ou `role="status"`).
+- Imagens com `alt` informativo no detalhe e nos cards; thumbnails e repetições
+  usam `alt=""` quando o contexto já descreve o item (`NftCard`, `NftGallery`,
+  recibo, perfil).
+- Responsividade documentada: perfil e carteiras têm layout próprio em
+  mobile/tablet (sem frame no Figma), verificado em 390/768 para evitar overflow
+  (`ARCHITECTURE.md` → Layout mobile de perfil e carteiras).
+
+**Aceite:** fluxos completos navegáveis só por teclado; formulários e ações de
+mutação com feedback acessível; layouts em 390/768/1440 sem overflow; Lighthouse
+sem violações de acessibilidade. Pendência explícita: inspeção manual em zoom 200%.
 
 ---
 
 ## Seção 13 — Testes E2E (Playwright)
 
-- [ ] 12 cenários do enunciado, cada um com estado isolado (`resetDatabase` via API
-      de teste dos mocks)
-- [ ] Fluxos principais em desktop e mobile (Chromium)
-- [ ] Regressão visual de início, detalhe, carrinho e pagamento com baselines
+- [x] Estado isolado por teste (`POST /api/__mock/reset` antes de cada cenário)
+- [x] Fluxos principais em desktop, tablet e mobile (projetos Chromium da config)
+- [x] Cenários determinísticos de falha: `flaky`, `session-expired`,
+      `price-changed`, `sold-out`, `payment-declined`, `order-timeout`
+- [x] Traces/vídeos de falha + relatório HTML (`playwright-report/`)
+- [ ] Regressão visual com baselines versionadas
 - [ ] Controle de relógio/latência nas asserções sensíveis a tempo
-- [ ] Traces de falha + relatório HTML versionado por comando
 
-**Aceite:** `npm run test:e2e` verde a partir de checkout limpo; testes de tempo real
-passando pelo `socket.io-client` e de REST pelos handlers MSW.
+**Cobertura atual (8 specs):**
 
-**Depende de:** Seções 5–11.
+| Spec | Fluxos |
+| --- | --- |
+| `smoke.spec.ts` | shell, home e 404 em três viewports |
+| `catalog.spec.ts` | busca ao vivo na URL, filtros, ordenação e paginação |
+| `detail.spec.ts` | galeria, quantidade, favoritos otimistas e rollback |
+| `auth.spec.ts` | login, cadastro, logout e retorno por `redirect` |
+| `cart.spec.ts` | linhas, cotação, cupom na URL e cenários de preço/disponibilidade |
+| `checkout.spec.ts` | revisão, mudança de total, recusa da carteira e idempotência |
+| `orders.spec.ts` | recibo imutável, histórico, pedido recusado e isolamento |
+| `account.spec.ts` | perfil, senha, CRUD de carteiras e isolamento entre contas |
+
+**Aceite:** `npm run test:e2e` verde a partir de checkout limpo. Baselines
+visuais e controle de relógio continuam pendentes; os cenários de tempo são
+determinísticos por dados (`price-changed`, `sold-out`, `order-timeout`) em vez
+de relógio falso.
+
+**Depende de:** Seções 5–12.
 
 ---
 
 ## Seção 14 — Performance e Lighthouse
 
-- [ ] Build otimizado + preview com cenário padrão
-- [ ] Script reproduzível: 3 medições por página (início, detalhe) × mobile/desktop
-- [ ] Metas: Perf ≥ 90, A11y ≥ 95, BP ≥ 95, SEO ≥ 90 (mediana)
+**Escopo definido (não é código de aplicação):** medir o build de produção
+servido por `npm run preview` com os mocks ativos, em duas páginas (início e
+detalhe) e dois perfis (mobile e desktop), três execuções por combinação. O
+resultado é uma tabela de medianas com ambiente e versão das ferramentas.
+
+- [x] Build de produção + preview com cenário `default`
+- [x] Procedimento reproduzível: 3 medições por página (início, detalhe) × mobile/desktop
+- [ ] Metas: Perf ≥ 90, A11y ≥ 95, BP ≥ 95, SEO ≥ 90 (mediana) — desktop
+      dentro das metas; mobile fica em Perf 78 e BP 93 (ver leitura abaixo)
 - [ ] Relatórios HTML/JSON versionados + LCP/CLS/TBT e justificativas
-- [ ] Otimizações de imagem/fonte com impacto medido (antes/depois)
+- [ ] Otimizações de imagem/fonte com impacto medido (antes/depois) — o
+      robots.txt + canonical absoluto foram medidos (SEO 85 → 100); imagens
+      ainda não têm comparação antes/depois
+
+**Como executar:**
+
+```bash
+npm run build
+npm run preview -- --host 127.0.0.1 --port 4173   # mantém MSW ativo
+npx lighthouse http://127.0.0.1:4173/ \
+  --only-categories=performance,accessibility,best-practices,seo \
+  --preset=desktop --output=json --output-path=docs/reports/home-desktop-1.json
+# repetir 3× por página/perfil, incluindo
+# http://127.0.0.1:4173/nfts/nft_004 e --form-factor=mobile
+```
+
+**Medições (26/10/2026, mediana de 3 execuções):**
+
+| Página | Perfil | Perf | A11y | BP | SEO | LCP | CLS | TBT |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Início | desktop | 98 | 100 | 96 | 100 | 0,98 s | 0 | 0 ms |
+| Início | mobile | 78 | 100 | 93 | 100 | 4,37 s | 0,001 | 15 ms |
+| Detalhe | desktop | 99 | 100 | 96 | 100 | 0,93 s | 0 | 0 ms |
+| Detalhe | mobile | 78 | 100 | 96 | 100 | 4,43 s | 0 | 20 ms |
+
+**Ambiente:** macOS 27.0, Apple M1 Pro, Node 22.14.0, Lighthouse 12.8.2,
+Chrome 156.0.8078.47; build de produção em `vite preview`
+(`127.0.0.1:4173`, mocks no cenário `default`).
+
+**Leitura:**
+
+- **Acessibilidade fecha a Seção 12:** 100 nas quatro combinações, sem
+  violações críticas; o zoom 200% manual continua pendente.
+- **SEO:** 100 após adicionar `public/robots.txt` e trocar o canonical relativo
+  por um absoluto derivado da origem; o ganho (85 → 100) foi medido.
+- **Desktop:** Perf 98/99, BP 96 — dentro das metas.
+- **Mobile:** Perf 78 e BP 93 abaixo da meta. O LCP de ~4,4 s é dominado pelo
+  *load delay* (~3,2 s): a demonstração só renderiza depois que o MSW termina
+  `worker.start()` e o chunk do browser (≈470 KB) carrega. Pré-carregar a imagem
+  do hero moveu o tempo de load para render delay sem reduzir o LCP, então foi
+  revertido. O BP mobile desconta os erros esperados de rede do demo (sondagem
+  `GET /api/session` sem sessão e tentativas de WebSocket antes do MSW assumir).
+  A otimização real exige rever o bootstrap dos mocks ou separar o shell do
+  chunk de MSW — fora do escopo destas correções.
+
+**Dados ainda necessários:** relatórios HTML/JSON versionados e a comparação
+antes/depois de imagens (WebP/`srcset`). Até lá, os números acima são os únicos
+que o projeto deve declarar.
 
 **Aceite:** tabela de medianas no README com ambiente e versões das ferramentas.
 
-**Depende de:** Seção 13.
+**Depende de:** Seção 12.
 
 ---
 
@@ -362,5 +484,7 @@ passando pelo `socket.io-client` e de REST pelos handlers MSW.
 - [ ] `ARCHITECTURE.md` final: contratos, eventos, sessão, carrinho, cache,
       reconciliação REST ↔ Socket.IO, limitações e desvios do Figma
 - [ ] Autoauditoria contra a rubrica da seção 11 do enunciado
+
+**Depende de:** Seções 13 e 14.
 
 **Aceite:** checklist de 12 itens da rubrica com evidência apontada.

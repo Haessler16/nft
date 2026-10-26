@@ -24,6 +24,7 @@ const CommandInput = ({
   <input
     value={value}
     onChange={(e) => onValueChange(e.target.value)}
+    aria-label={placeholder ?? 'Buscar carteira'}
     placeholder={placeholder}
     className={cn(
       'w-full rounded-md border border-input bg-transparent py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50',
@@ -41,9 +42,16 @@ const CommandGroup = ({
   children: React.ReactNode
   className?: string
 }) => (
-  <div className={cn('flex flex-col gap-0.5 p-1', className)}>
+  <div
+    role="listbox"
+    aria-label={heading ?? 'Carteiras cadastradas'}
+    className={cn('flex flex-col gap-0.5 p-1', className)}
+  >
     {heading && (
-      <div className="px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      <div
+        aria-hidden="true"
+        className="px-2 py-0.5 text-xs font-medium text-muted-foreground"
+      >
         {heading}
       </div>
     )}

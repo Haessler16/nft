@@ -6,7 +6,7 @@ import { ProfilePage } from '@/features/profile/components/profile-page'
 export const Route = createFileRoute('/account/profile')({
   beforeLoad: requireSession,
   head: () => ({
-    meta: [{ title: 'Perfil — NFT Market' }],
+    meta: [{ title: 'Meu perfil — KURIO' }],
   }),
   component: ProfilePage,
 })

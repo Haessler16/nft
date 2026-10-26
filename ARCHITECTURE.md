@@ -124,7 +124,13 @@ o resultado para o contrato REST, e a query key usa exatamente esse objeto.
 | DELETE | `/api/cart/items/:nftId` | remove | `handlers/cart.ts` | `cart` |
 | GET | `/api/quote` | `QuoteResponse` (`items=nft:qtd,…`, `coupon`) · `422`/`404` | `handlers/quote.ts` | `cart` |
 | POST | `/api/coupons/validate` | `{ code }` → `CouponValidation` · `422` (`fields.coupon`) | `handlers/quote.ts` | `cart` |
+| GET | `/api/profile` | `Profile` · `401`/`404` | `handlers/profile.ts` | `profile` |
+| PUT | `/api/profile` | `UpdateProfileInput` → `Profile` · `401`/`404`/`422` | `handlers/profile.ts` | `profile` |
+| POST | `/api/profile/password` | `{ currentPassword, newPassword }` → `{ ok: true }`/erro · `401`/`422` | `handlers/profile.ts` | `profile` |
 | GET | `/api/wallets` | `WalletsResponse` · `401` | `handlers/wallets.ts` | `wallets` |
+| POST | `/api/wallets` | `CreateWalletInput` → `Wallet` (`201`) · `401`/`422` | `handlers/wallets.ts` | `wallets` |
+| PUT | `/api/wallets/:walletId` | `UpdateWalletInput` → `Wallet` · `401`/`404`/`422` | `handlers/wallets.ts` | `wallets` |
+| DELETE | `/api/wallets/:walletId` | `{ ok: true }` · `401`/`404`/`409` | `handlers/wallets.ts` | `wallets` |
 | POST | `/api/wallets/connect` | `ConnectWalletInput` → `WalletConnection` (`200` com `status: refused`) · `401`/`404`/`422`/`503` | `handlers/wallets.ts` | `wallets` |
 | POST | `/api/orders` | `CreateOrderInput` + header `Idempotency-Key` → `Order` (`201`) · `401`/`409`/`422`/`504` | `handlers/orders.ts` | `orders` |
 | GET | `/api/orders` | `OrdersListResponse` (pedidos do escopo, mais recentes primeiro) · `401` | `handlers/orders.ts` | `orders` |
@@ -132,7 +138,9 @@ o resultado para o contrato REST, e a query key usa exatamente esse objeto.
 | GET | `/api/orders/by-key/:idempotencyKey` | `Order` · `401`/`404` (recuperação após timeout) | `handlers/orders.ts` | `orders` |
 
 Erros seguem sempre o envelope `{ error: { code, message, fields? } }`
-(`handlers/envelope.ts`). O CRUD de perfil e de carteiras chega na Seção 11.
+(`handlers/envelope.ts`). A seção de perfil e carteiras (`/account/profile`,
+`/account/wallets`) está implementada; a próxima seção cobre a
+transversal de acessibilidade e responsividade.
 
 ## 5. Estado remoto: cache, retries e invalidação
 
@@ -322,7 +330,35 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
 - **Isolamento**: pedido de outro usuário responde `404` (não vaza existência);
   chave, pedido ativo e carteiras são todos escopados pelo id da sessão.
 
-## 11. Pedido, recibo e histórico (Seção 9)
+## 11. Conta: perfil e carteiras (Seção 11)
+
+- **Perfil** (`/account/profile`): `GET /api/profile` e `PUT /api/profile` são
+  escopados pela sessão. O painel alterna leitura e edição; o editor usa
+  react-hook-form + zod e envia nome, e-mail, bio e `avatarUrl`. O avatar é um
+  upload simulado: o arquivo vira data URL no próprio campo, com preview, e
+  "remover" grava `null`. O editor só fecha depois do `PUT`; erro de validação
+  mantém os valores digitados.
+- **Sessão coerente:** o `PUT` invalida `['profile', escopo]` e `['session']`,
+  então o nome/e-mail/avatar do cabeçalho acompanham a edição sem reload. O
+  servidor recusa e-mail já usado por outra conta (`409` + `fields.email`).
+- **Senha:** `POST /api/profile/password` exige a senha atual. Senha atual errada
+  e nova senha fraca respondem `422` no envelope único com
+  `fields.currentPassword`/`fields.newPassword`; o formulário liga a mensagem ao
+  input (`aria-invalid` + `aria-describedby`) e limpa o formulário só no
+  sucesso.
+- **Carteiras** (`/account/wallets`): `GET/POST/PUT/DELETE /api/wallets` sobre o
+  escopo da sessão. Cadastro e edição compartilham `WalletForm`; a remoção é
+  confirmada em diálogo e só existe para a secundária. O `db` mantém uma única
+  principal por conta (promover rebaixa as outras) e deriva `supportedNetworks`
+  de `PROVIDER_NETWORKS[provider]`.
+- **Validação compartilhada:** endereço `0x` + 40 hex, nome de 2–60 caracteres,
+  provedor/rede suportados. O formulário (zod) e o handler devolvem a mesma
+  mensagem, e a combinação não suportada é recusada nos dois lados.
+- **Cache e isolamento:** chaves `['profile', escopo]` / `['wallets', escopo]`;
+  logout remove os dois escopos (`useLogoutMutation`). O E2E `account.spec.ts`
+  prova a persistência e a separação entre Ava e Noah nos três viewports.
+
+## 12. Pedido, recibo e histórico (Seção 9)
 
 - **Recibo como snapshot:** [order-receipt.tsx](src/features/orders/components/order-receipt.tsx)
   renderiza exclusivamente o que foi congelado na criação do pedido (linhas,
@@ -350,7 +386,7 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
   remove o escopo inteiro (`removeQueries(['orders'])`), então o cache do usuário
   anterior nunca atende o novo escopo.
 
-## 12. Interface, responsividade e acessibilidade
+## 13. Interface, responsividade e acessibilidade
 
 - Tokens em `src/index.css` (`@theme`), base shadcn/ui; componentes da UI recebem a
   identidade do Figma via CSS variables, não via classes soltas.
@@ -361,23 +397,48 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
 - Foco visível global, skip link no root, foco preso em dialog/drawer (Radix), erros
   associados por `aria-describedby`, feedback de mutação e de evento em `aria-live`.
 
+### Evidências da Seção 12
+
+- **Teclado/foco:** o controle global de foco visível vive em `src/index.css` (`:focus-visible`),
+  e todos os controles interativos usam `focus-visible:ring`. Diálogos e drawers usam as
+  travas do Radix (`src/components/ui/dialog.tsx`, `src/components/ui/sheet.tsx`), que
+  içam e devolvem o foco. Cartões do catálogo, galeria, comando de carteiras e o
+  cabeçalho/rodapé usam `aria-label`/`aria-pressed` quando o texto do botão é um ícone ou
+  uma ação compacta.
+- **Formulários:** cada campo tem `<label>`/`htmlFor` + `aria-describedby` apontando para a
+  descrição e para o erro, e `aria-invalid` quando o valor é inválido; a região de erro usa
+  `role="alert"` (`src/components/ui/field.tsx` e os formulários de perfil, carteiras,
+  auth e checkout). A troca de senha tem reautenticação e o erro de senha atual é
+  tratado como feedback de campo.
+- **`aria-live`:** a mutação que depende do tempo ou que pode falhar reporta o resultado por
+  região `aria-live` (alertas inline no checkout/recibo, `role="status"` em skeletons e
+  região visível) em vez de apenas um toast discreto.
+- **Imagens:** imagens informative têm `alt` com nome/contexto (`NftCard`,
+  `NftGallery`, recibo, perfil); thumbnails e repetições usam `alt=""` quando o contexto
+  já descreve o item.
+- **Responsividade:** perfil e carteiras têm layout próprio para mobile/tablet (sem frame no
+  Figma), documentado em `ARCHITECTURE.md` → Layout mobile de perfil e carteiras; o restante
+  do app foi verificado em 390/768/1440 sem overflow horizontal.
+
 ### Layout mobile de perfil e carteiras (Seção 11)
 
 As telas de perfil (`/account/profile`) e carteiras (`/account/wallets`) não têm
 frame no Figma, então o layout mobile foi definido arbitrariamente seguindo os
 princípios do design system:
 
-- **Perfil**: formulário vertical único, sem abas no mobile. O seletor de tabs
-  Dados/Senha vira uma lista de opções simples. O avatar com preview ocupa toda
-  a largura disponível, com o botão de remover abaixo.
-- **Carteiras**: lista de carteiras com botões de editar/remover, sem comando de
-  busca no mobile. O formulário de criação/edição ocupa toda a largura e usa
-  um layout vertical simples.
+- **Perfil**: as abas Dados/Senha continuam (são o único caminho entre os dois
+  formulários), ocupando a largura disponível e com rolagem horizontal se o
+  texto crescer. O formulário é uma coluna única; o avatar com preview e o
+  botão de remover empilham abaixo do campo de arquivo.
+- **Carteiras**: lista em uma coluna, com os botões Editar/Remover em linha e
+  quebra automática. O comando "Selecionar carteira…" é secundário e fica
+  oculto abaixo de `md`; criar/editar abre o mesmo formulário em coluna única
+  (`grid-cols-1 sm:grid-cols-2` para provedor e rede).
 
 Ambos os layouts foram verificados em 390px (mobile) e 768px (tablet) para evitar
 overflow horizontal e manter os elementos acessíveis.
 
-## 13. Design system e assets (KURIO)
+## 14. Design system e assets (KURIO)
 
 Identidade extraída dos frames em `nft img/`:
 
@@ -417,7 +478,7 @@ inputs escuros) em vez de sobrescritos por tela. Skeletons usam a utilidade
 - Imagens têm `width`/`height` explícitos e `loading="lazy"` (exceto o hero, com
   `fetchPriority="high"`) para evitar CLS e acelerar o LCP.
 
-## 14. Limitações e desvios conhecidos
+## 15. Limitações e desvios conhecidos
 
 - Integrações reais de blockchain, carteira e pagamento estão fora do escopo: tudo é
   simulado e rotulado como demonstração no rodapé.

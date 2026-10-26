@@ -13,16 +13,13 @@ import {
   type Wallet,
 } from '@/features/wallets/api/contracts'
 import { useSession } from '@/app/session/hooks'
-import {
-  useUpdateWallet,
-  useDeleteWallet,
-} from '@/features/wallets/api/mutations'
+import { useDeleteWallet } from '@/features/wallets/api/mutations'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import {
   Field,
@@ -84,21 +81,24 @@ export interface WalletFormItemProps {
 /** Display card for one registered wallet (Seção 11). */
 export function WalletFormItem({ wallet, onEdit }: WalletFormItemProps) {
   const { scope } = useSession()
-  const updateMutation = useUpdateWallet(scope)
   const deleteMutation = useDeleteWallet(scope)
 
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const handleDelete = () => setDeleteConfirmOpen(true)
   const confirmDelete = () => {
-    deleteMutation.mutate({ walletId: wallet.id })
-    setDeleteConfirmOpen(false)
+    deleteMutation.mutate(
+      { walletId: wallet.id },
+      { onSuccess: () => setDeleteConfirmOpen(false) },
+    )
   }
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
+      <div
+        className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+        data-testid={`carteira-${wallet.id}`}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -123,7 +123,9 @@ export function WalletFormItem({ wallet, onEdit }: WalletFormItemProps) {
             <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-md border border-border bg-muted/30 p-2">
                 <dt className="text-muted-foreground">Provedor</dt>
-                <dd className="font-medium text-foreground">{wallet.provider}</dd>
+                <dd className="font-medium text-foreground">
+                  {WALLET_PROVIDER_LABELS[wallet.provider]}
+                </dd>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
                 <dt className="text-muted-foreground">Rede</dt>
@@ -151,42 +153,6 @@ export function WalletFormItem({ wallet, onEdit }: WalletFormItemProps) {
           </p>
         )}
       </div>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>Editar carteira</DialogTitle>
-          </DialogHeader>
-          <WalletForm
-            defaultValues={wallet}
-            onSubmit={(values) => {
-              updateMutation.mutate({
-                walletId: wallet.id,
-                label: values.label,
-                address: values.address,
-                provider: values.provider as WalletProvider,
-                network: values.network as NftNetwork,
-                primary: values.primary,
-              })
-              setDialogOpen(false)
-            }}
-            onCancel={() => setDialogOpen(false)}
-            disabled={updateMutation.isPending}
-          />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              disabled={updateMutation.isPending}
-            >
-              {updateMutation.isPending ? 'Salvando…' : 'Salvar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-[420px]">
@@ -229,6 +195,7 @@ export interface WalletFormProps {
 export function WalletForm({
   defaultValues,
   onSubmit,
+  onCancel,
   disabled = false,
 }: WalletFormProps) {
   const { control, handleSubmit, formState } = useForm<WalletFormValues>({
@@ -251,20 +218,27 @@ export function WalletForm({
       <Controller name="label" control={control} render={({ field }) => (
         <Field>
           <FieldLabel htmlFor="wallet-label">Nome da carteira</FieldLabel>
-          <FieldContent>
-            <Input
-              id="wallet-label"
-              {...field}
-              placeholder="Ex: Carteira pessoal"
-              disabled={disabled}
-              aria-describedby={formState.errors.label ? 'wallet-label-desc' : undefined}
-            />
-            <FieldDescription id="wallet-label-desc">
-              Nome curto para identificar esta carteira.
-            </FieldDescription>
-            {formState.errors.label && (
-              <FieldError errors={[{ message: formState.errors.label.message }]} />
-            )}
+          <FieldContent>              <Input
+                id="wallet-label"
+                {...field}
+                placeholder="Ex: Carteira pessoal"
+                disabled={disabled}
+                aria-invalid={formState.errors.label ? true : undefined}
+                aria-describedby={
+                  formState.errors.label
+                    ? 'wallet-label-desc wallet-label-error'
+                    : 'wallet-label-desc'
+                }
+              />
+              <FieldDescription id="wallet-label-desc">
+                Nome curto para identificar esta carteira.
+              </FieldDescription>
+              {formState.errors.label && (
+                <FieldError
+                  id="wallet-label-error"
+                  errors={[{ message: formState.errors.label.message }]}
+                />
+              )}
           </FieldContent>
         </Field>
       )} />
@@ -280,7 +254,12 @@ export function WalletForm({
                 placeholder="0x..."
                 className="font-mono text-sm"
                 disabled={disabled}
-                aria-describedby={formState.errors.address ? 'wallet-address-desc' : undefined}
+                aria-invalid={formState.errors.address ? true : undefined}
+                aria-describedby={
+                  formState.errors.address
+                    ? 'wallet-address-desc wallet-address-error'
+                    : 'wallet-address-desc'
+                }
               />
               {field.value && (
                 <button
@@ -298,13 +277,16 @@ export function WalletForm({
               Endereço do wallet (0x + 40 caracteres hex).
             </FieldDescription>
             {formState.errors.address && (
-              <FieldError errors={[{ message: formState.errors.address.message }]} />
+              <FieldError
+                id="wallet-address-error"
+                errors={[{ message: formState.errors.address.message }]}
+              />
             )}
           </FieldContent>
         </Field>
       )} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Controller name="provider" control={control} render={({ field }) => (
           <Field>
             <FieldLabel htmlFor="wallet-provider">Tipo de carteira</FieldLabel>
@@ -314,7 +296,15 @@ export function WalletForm({
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger
+                  id="wallet-provider"
+                  className="w-full"
+                  aria-label="Tipo de carteira"
+                  aria-invalid={formState.errors.provider ? true : undefined}
+                  aria-describedby={
+                    formState.errors.provider ? 'wallet-provider-error' : undefined
+                  }
+                >
                   <SelectValue placeholder="Escolha o tipo de carteira" />
                 </SelectTrigger>
                 <SelectContent>
@@ -326,7 +316,10 @@ export function WalletForm({
                 </SelectContent>
               </Select>
               {formState.errors.provider && (
-                <FieldError errors={[{ message: formState.errors.provider.message }]} />
+                <FieldError
+                  id="wallet-provider-error"
+                  errors={[{ message: formState.errors.provider.message }]}
+                />
               )}
             </FieldContent>
           </Field>
@@ -341,7 +334,15 @@ export function WalletForm({
                 onValueChange={field.onChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger
+                  id="wallet-network"
+                  className="w-full"
+                  aria-label="Rede"
+                  aria-invalid={formState.errors.network ? true : undefined}
+                  aria-describedby={
+                    formState.errors.network ? 'wallet-network-error' : undefined
+                  }
+                >
                   <SelectValue placeholder="Escolha uma rede" />
                 </SelectTrigger>
                 <SelectContent>
@@ -353,7 +354,10 @@ export function WalletForm({
                 </SelectContent>
               </Select>
               {formState.errors.network && (
-                <FieldError errors={[{ message: formState.errors.network.message }]} />
+                <FieldError
+                  id="wallet-network-error"
+                  errors={[{ message: formState.errors.network.message }]}
+                />
               )}
             </FieldContent>
           </Field>
@@ -392,6 +396,15 @@ export function WalletForm({
           </FieldContent>
         </Field>
       )} />
+
+      <div className="flex flex-wrap justify-end gap-3 pt-2 border-t border-border">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={disabled}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={disabled}>
+          {disabled ? 'Salvando…' : 'Salvar'}
+        </Button>
+      </div>
     </form>
   )
 }

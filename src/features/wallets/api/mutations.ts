@@ -1,13 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 import {
   connectWallet,
   createWallet,
   updateWallet,
   deleteWallet,
-  fetchWallets,
 } from '@/features/wallets/api/endpoints'
+import { isApiError } from '@/lib/api/errors'
 import { queryKeys, type UserScope } from '@/lib/query/keys'
+
+const errorMessage = (error: unknown, fallback: string): string => {
+  if (!isApiError(error)) return fallback
+  return Object.values(error.fields)[0] ?? error.message
+}
 
 /**
  * Mutação de conexão de carteira (docs/PLAN.md → Seção 8).
@@ -16,31 +22,19 @@ import { queryKeys, type UserScope } from '@/lib/query/keys'
  * que responde "rede errada"), então aqui não é tratada como erro: o checkout
  * renderiza o motivo ao lado dos controles e mantém o fluxo reversível.
  */
-export const useConnectWallet = () =>
-  useMutation({ mutationFn: connectWallet })
+export const useConnectWallet = () => useMutation({ mutationFn: connectWallet })
 
-/**
- * Query de carteiras cadastradas (docs/PLAN.md → Seção 8).
- *
- * Usa o escopo da sessão, como todo recurso privado, para que logout/troca
- * de usuário não exponha endereços de outra conta.
- */
-export const useWallets = (scope: UserScope, enabled = true) =>
-  useQuery({
-    queryKey: queryKeys.wallets.byUser(scope),
-    queryFn: () => fetchWallets(),
-    enabled,
-    staleTime: 60_000,
-  })
-
-/** Cria ou atualiza carteira e invalida a lista do usuário. */
+/** Cria uma carteira e invalida a lista do usuário. */
 export const useCreateWallet = (scope: UserScope) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: Parameters<typeof createWallet>[0] | Parameters<typeof updateWallet>[0]) =>
-      'walletId' in input ? updateWallet(input) : createWallet(input),
+    mutationFn: (input: Parameters<typeof createWallet>[0]) => createWallet(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+      toast.success('Carteira cadastrada.')
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Não foi possível cadastrar a carteira.'))
     },
   })
 }
@@ -49,10 +43,13 @@ export const useCreateWallet = (scope: UserScope) => {
 export const useUpdateWallet = (scope: UserScope) => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: Parameters<typeof updateWallet>[0]) =>
-      updateWallet(input),
+    mutationFn: (input: Parameters<typeof updateWallet>[0]) => updateWallet(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+      toast.success('Carteira atualizada.')
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Não foi possível atualizar a carteira.'))
     },
   })
 }
@@ -63,7 +60,11 @@ export const useDeleteWallet = (scope: UserScope) => {
   return useMutation({
     mutationFn: ({ walletId }: { walletId: string }) => deleteWallet(walletId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+      toast.success('Carteira removida.')
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Não foi possível remover a carteira.'))
     },
   })
 }

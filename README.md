@@ -10,10 +10,11 @@ O enunciado do desafio está em [BRIEF.md](BRIEF.md), o plano de execução em
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
 > **Status:** fundação, design system, catálogo, autenticação/sessão, detalhe
-> com favoritos, carrinho/cotação, checkout com pedido idempotente e recibo com
-> histórico (Seções 0–9) implementados. Perfil e carteiras ainda são
-> placeholders navegáveis que listam seus comportamentos obrigatórios.
-> Nenhuma transação real é executada.
+> com favoritos, carrinho/cotação, checkout com pedido idempotente, recibo com
+> histórico e conta (perfil, senha e carteiras) implementados (Seções 0–12).
+> O que resta no plano é fechamento de qualidade — baselines visuais, zoom 200%
+> manual, performance mobile e deploy (Seções 13–15). Nenhuma transação real é
+> executada.
 
 ## Stack
 
@@ -56,7 +57,11 @@ npm run dev                        # http://localhost:5173 com MSW ativo
 | `npm run test:e2e -- --project=chromium-mobile` | apenas um viewport |
 
 Relatório HTML em `playwright-report/`; traces/vídeos de falha em
-`test-results/` (ambos ignorados pelo git).
+`test-results/` (ambos ignorados pelo git). A suíte cobre shell/catálogo
+(`smoke`, `catalog`), detalhe/favoritos (`detail`), autenticação/sessão (`auth`),
+carrinho/cotação (`cart`), checkout (`checkout`), recibo/histórico (`orders`) e
+conta (`account`: perfil, senha, carteiras e isolamento entre contas). Cada spec
+começa com `POST /api/__mock/reset` e roda nos três viewports configurados.
 
 ## Variáveis de ambiente
 
@@ -102,7 +107,8 @@ src/
     favorites/    contratos, endpoints, queries e toggle otimista
     nfts/         contratos, endpoints, queries, busca ao vivo na URL e componentes
     orders/       contratos do snapshot, endpoints, query com poll, recibo e histórico
-    wallets/      contratos, endpoints, queries e simulação de conexão
+    profile/      contratos, schema, endpoints, mutations, leitura e edição do perfil
+    wallets/      contratos, endpoints, CRUD da conta e simulação de conexão
   lib/            api (Axios + erros + tipos), query (client + keys + ensure), dinheiro, env
   mocks/          MSW: db, fixtures (nfts, usuários, cupons), handlers
   routes/         rotas file-based (routeTree.gen.ts é gerado)
@@ -122,8 +128,8 @@ nft img/          frames originais do design (referência)
 | `/cart` | Carrinho (itens, quantidade, cupom, resumo da cotação) | **implementada** |
 | `/checkout` | Pagamento: perfil, carteira/rede, revisão e pedido | **implementada** (**privada**) |
 | `/orders/$orderId` | Confirmação / recibo completo (snapshot imutável) | **implementada** (**privada**) |
-| `/account` → `/account/profile` | Perfil do colecionador | placeholder (**privada**) |
-| `/account/wallets` | Carteiras | placeholder (**privada**) |
+| `/account` → `/account/profile` | Perfil do colecionador (dados, avatar e senha) | **implementada** (**privada**) |
+| `/account/wallets` | Carteiras: lista, cadastro, edição e remoção da secundária | **implementada** (**privada**) |
 | `/account/orders` | Meus pedidos (histórico com estados) | **implementada** (**privada**) |
 | `*` | 404 dentro do shell | implementado |
 
@@ -195,6 +201,31 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
 - Valores do recibo são o **snapshot** gravado na criação: mudanças posteriores
   no catálogo não alteram um pedido existente.
 
+## Conta: perfil, senha e carteiras
+
+- `/account/profile` (privada) é a tela "Meu perfil": lê nome, e-mail, bio e
+  avatar do escopo da sessão e alterna entre os painéis **Dados** e **Senha**.
+  "Editar perfil" abre o formulário com os valores confirmados; o avatar é um
+  upload simulado (preview imediato) e só sai do formulário depois que o
+  `PUT /api/profile` responde. Salvar invalida perfil **e** sessão, então o nome
+  no cabeçalho acompanha a edição sem reload.
+- **Senha:** `POST /api/profile/password` exige a senha atual (reautenticação).
+  Senha atual errada e nova senha fraca voltam no envelope da API com o campo
+  culpado, e o formulário mostra o erro sob o input (`aria-invalid` +
+  `aria-describedby`). A troca válida limpa o formulário e o login seguinte já
+  aceita a nova senha.
+- `/account/wallets` (privada) lista as carteiras da conta com provedor, rede e
+  o selo Principal/Secundária. "Nova carteira" cadastra uma nova; "Editar" abre
+  o mesmo formulário em modo de edição; "Remover" (somente na secundária)
+  confirma em diálogo antes do `DELETE`. O servidor garante uma única principal
+  e o endereço precisa casar com `0x` + 40 hexadecimais.
+- **Provedor × rede:** MetaMask assina Ethereum/Polygon, Coinbase Wallet
+  Ethereum/Solana e WalletConnect as três. A combinação não suportada é recusada
+  tanto no formulário quanto no handler, com a mesma mensagem.
+- **Isolamento:** perfil e carteiras usam chaves prefixadas pelo escopo da
+  sessão; logout/troca de usuário removem o escopo privado. O E2E cobre a
+  diferença entre as contas demo (Ava e Noah).
+
 ## Dados simulados
 
 - O estado vive em [src/mocks/db.ts](src/mocks/db.ts), é persistido em
@@ -207,7 +238,9 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
   (`GET|PUT|DELETE /api/favorites[/:nftId]`), carrinho (`GET /api/cart`,
   `POST /api/cart/items`, `PATCH|DELETE /api/cart/items/:nftId`), cotação e
   cupons (`GET /api/quote`, `POST /api/coupons/validate`), carteiras
-  (`GET /api/wallets`, `POST /api/wallets/connect`), pedidos
+  (`GET /api/wallets`, `POST /api/wallets`, `PUT|DELETE /api/wallets/:id`,
+  `POST /api/wallets/connect`), perfil e senha (`GET|PUT /api/profile`,
+  `POST /api/profile/password`), pedidos
   (`POST /api/orders`, `GET /api/orders` (histórico), `GET /api/orders/:id`,
   `GET /api/orders/by-key/:key`) e
   controle dos mocks (`GET /api/health`, `POST /api/__mock/reset`,
@@ -245,6 +278,39 @@ Exemplo: `/?q=golden&categories=%5B%22Arte%20digital%22%5D&sort=price-asc&page=2
   [ARCHITECTURE.md](ARCHITECTURE.md#assets-e-substituições).
 - Ícones de redes sociais são glifos rotulados (o ícone de marca não existe no
   conjunto usado) e não são links.
+
+## Acessibilidade e performance
+
+Lighthouse 12.8.2 sobre o build de produção (`npm run preview`) com os mocks no
+cenário `default`; mediana de 3 execuções, macOS 27.0 / Apple M1 Pro / Chrome
+156 / Node 22.14.0:
+
+| Página | Perfil | Perf | A11y | BP | SEO | LCP | CLS | TBT |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Início | desktop | 98 | 100 | 96 | 100 | 0,98 s | 0 | 0 ms |
+| Início | mobile | 78 | 100 | 93 | 100 | 4,37 s | 0,001 | 15 ms |
+| Detalhe | desktop | 99 | 100 | 96 | 100 | 0,93 s | 0 | 0 ms |
+| Detalhe | mobile | 78 | 100 | 96 | 100 | 4,43 s | 0 | 20 ms |
+
+**Acessibilidade:** 100 nas quatro combinações (Lighthouse), somada aos três
+viewports do E2E (390/768/1440). A inspeção manual em zoom 200% ainda não foi
+feita.
+
+**Mobile:** o LCP de ~4,4 s vem do *load delay* (~3,2 s) porque a demo só
+renderiza depois de `worker.start()` do MSW e do chunk do browser (~470 KB).
+Pré-carregar o hero não melhorou o LCP (revertido). Melhorar isso exige rever o
+bootstrap dos mocks — registrado como pendência na Seção 14 do plano.
+
+Para reproduzir:
+
+```bash
+npm run build
+npm run preview -- --host 127.0.0.1 --port 4173
+CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  npx lighthouse http://127.0.0.1:4173/ \
+  --only-categories=performance,accessibility,best-practices,seo \
+  --preset=desktop --output=json --output-path=/tmp/kurio-home.json
+```
 
 ## Documentação
 

@@ -66,7 +66,7 @@ test.describe('estrutura inicial', () => {
 
     await expect(page).toHaveURL(/\/account\/profile$/)
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Perfil do colecionador' }),
+      page.getByRole('heading', { level: 1, name: 'Meu perfil' }),
     ).toBeVisible()
   })
 })

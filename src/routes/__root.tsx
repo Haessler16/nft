@@ -18,7 +18,17 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { property: 'og:title', content: 'KURIO — marketplace de NFTs' },
       { property: 'og:locale', content: 'pt_BR' },
     ],
-    links: [{ rel: 'canonical', href: '/' }],
+    // Canonical must be absolute; deriving it from the current origin keeps the
+    // demo correct locally and on whatever host it is published to.
+    links:
+      typeof window === 'undefined'
+        ? []
+        : [
+            {
+              rel: 'canonical',
+              href: `${window.location.origin}${window.location.pathname}`,
+            },
+          ],
   }),
   component: RootLayout,
   notFoundComponent: NotFoundState,

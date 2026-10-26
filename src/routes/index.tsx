@@ -34,7 +34,6 @@ export const Route = createFileRoute('/')({
       },
       { property: 'og:title', content: 'KURIO — marketplace de NFTs' },
     ],
-    links: [{ rel: 'canonical', href: '/' }],
   }),
   component: HomeRoute,
 })
