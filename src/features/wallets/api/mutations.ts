@@ -1,6 +1,13 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { connectWallet } from '@/features/wallets/api/endpoints'
+import {
+  connectWallet,
+  createWallet,
+  updateWallet,
+  deleteWallet,
+  fetchWallets,
+} from '@/features/wallets/api/endpoints'
+import { queryKeys, type UserScope } from '@/lib/query/keys'
 
 /**
  * Wallet connection simulation (docs/PLAN.md → Seção 8).
@@ -12,3 +19,43 @@ import { connectWallet } from '@/features/wallets/api/endpoints'
  */
 export const useConnectWallet = () =>
   useMutation({ mutationFn: connectWallet })
+
+export const useWallets = (scope: UserScope, enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.wallets.byUser(scope),
+    queryFn: () => fetchWallets(),
+    enabled,
+    staleTime: 60_000,
+  })
+
+export const useCreateWallet = (scope: UserScope) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof createWallet>[0]) =>
+      createWallet(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+    },
+  })
+}
+
+export const useUpdateWallet = (scope: UserScope) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof updateWallet>[0]) =>
+      updateWallet(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+    },
+  })
+}
+
+export const useDeleteWallet = (scope: UserScope) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ walletId }: { walletId: string }) => deleteWallet(walletId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.wallets.byUser(scope) })
+    },
+  })
+}

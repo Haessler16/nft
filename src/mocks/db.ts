@@ -1,7 +1,11 @@
 import type { CartEntry } from '@/features/cart/api/contracts'
+import {
+  isStrongPassword,
+} from '@/features/auth/api/contracts'
 import type { NftDetail, NftNetwork } from '@/features/nfts/api/contracts'
 import type { Order } from '@/features/orders/api/contracts'
 import { percentOf, sumEth } from '@/lib/money'
+import { hashPassword } from '@/mocks/fixtures/users'
 import { buildNfts } from '@/mocks/fixtures/nfts'
 import { USERS, type UserFixture } from '@/mocks/fixtures/users'
 import { WALLETS, type WalletFixture } from '@/mocks/fixtures/wallets'
@@ -261,6 +265,106 @@ export const db = {
     return state.wallets.find(
       (wallet) => wallet.userId === userId && wallet.id === walletId,
     )
+  },
+  createWallet(input: {
+    userId: string
+    label: string
+    provider: WalletFixture['provider']
+    address: string
+    network: WalletFixture['network']
+    primary: boolean
+  }): WalletFixture {
+    const wallet: WalletFixture = {
+      id: `wal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      ...input,
+      supportedNetworks: WALLETS[0]?.supportedNetworks ?? [],
+    }
+    update((current) => ({ wallets: [...current.wallets, wallet] }))
+    return wallet
+  },
+  updateWallet(
+    userId: string,
+    walletId: string,
+    patch: Partial<Pick<WalletFixture, 'label' | 'provider' | 'address' | 'network' | 'primary'>>,
+  ): WalletFixture | undefined {
+    const wallets = state.wallets.map((wallet) =>
+      wallet.userId === userId && wallet.id === walletId
+        ? { ...wallet, ...patch }
+        : wallet,
+    )
+    const wallet = wallets.find(
+      (candidate) => candidate.userId === userId && candidate.id === walletId,
+    )
+    if (!wallet) return undefined
+    update(() => ({ wallets }))
+    return wallet
+  },
+  deleteWallet(userId: string, walletId: string): boolean {
+    const wallet = state.wallets.find(
+      (candidate) => candidate.userId === userId && candidate.id === walletId,
+    )
+    if (!wallet) return false
+    if (wallet.primary) return false
+    update((current) => ({
+      wallets: current.wallets.filter(
+        (candidate) =>
+          !(candidate.userId === userId && candidate.id === walletId),
+      ),
+    }))
+    return true
+  },
+
+  /** Profile -------------------------------------------------------------- */
+  getProfile(userId: string) {
+    const user = state.users.find((candidate) => candidate.id === userId)
+    if (!user) return null
+    return {
+      displayName: user.name,
+      email: user.email,
+      bio: '',
+      avatarUrl: user.avatarUrl,
+    }
+  },
+  updateProfile(
+    userId: string,
+    patch: {
+      displayName?: string
+      email?: string
+      bio?: string
+      avatarUrl?: string | null
+    },
+  ) {
+    const user = state.users.find((candidate) => candidate.id === userId)
+    if (!user) return null
+    const next: UserFixture = { ...user }
+    if (patch.displayName !== undefined) next.name = patch.displayName
+    if (patch.email !== undefined) next.email = patch.email
+    if (patch.avatarUrl !== undefined) next.avatarUrl = patch.avatarUrl
+    update((current) => ({ users: current.users.map((candidate) =>
+      candidate.id === userId ? next : candidate,
+    )}))
+    return {
+      displayName: next.name,
+      email: next.email,
+      bio: '',
+      avatarUrl: next.avatarUrl,
+    }
+  },
+  changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): { ok: true } | { error: 'CURRENT_WRONG' | 'NEW_WEAK' } {
+    const user = state.users.find((candidate) => candidate.id === userId)
+    if (!user) return { error: 'CURRENT_WRONG' }
+    if (user.passwordHash !== hashPassword(currentPassword)) return { error: 'CURRENT_WRONG' }
+    if (!isStrongPassword(newPassword)) return { error: 'NEW_WEAK' }
+    update((current) => ({
+      users: current.users.map((candidate) =>
+        candidate.id === userId ? { ...candidate, passwordHash: hashPassword(newPassword) } : candidate,
+      ),
+    }))
+    return { ok: true }
   },
 
   /** Orders --------------------------------------------------------------- */

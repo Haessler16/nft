@@ -1,4 +1,5 @@
 import type { NftNetwork } from '@/features/nfts/api/contracts'
+import { PROVIDER_NETWORKS, supportsNetwork } from '@/mocks/fixtures/wallets'
 
 /**
  * Wallet contracts (docs/PLAN.md → Seções 8 e 11).
@@ -11,6 +12,9 @@ import type { NftNetwork } from '@/features/nfts/api/contracts'
  * The provider decides which networks can be used: refusing an unsupported
  * combination is a deterministic rule of the mock, not a UI guess.
  */
+export const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
+export { PROVIDER_NETWORKS, supportsNetwork }
+export type { ProviderNetworks }
 
 export const WALLET_PROVIDERS = ['metamask', 'walletconnect', 'coinbase'] as const
 export type WalletProvider = (typeof WALLET_PROVIDERS)[number]
@@ -19,7 +23,6 @@ export type WalletProvider = (typeof WALLET_PROVIDERS)[number]
  * Address rule shared by the form, the wallet handler and the order handler:
  * `0x` + 40 hexadecimal characters. One regex, one message, three layers.
  */
-export const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
 
 export const WALLET_PROVIDER_LABELS: Record<WalletProvider, string> = {
   metamask: 'MetaMask',
@@ -44,6 +47,27 @@ export interface WalletsResponse {
   wallets: Wallet[]
 }
 
+/** Input accepted by `POST /api/wallets`. */
+export interface CreateWalletInput {
+  label: string
+  address: string
+  provider: WalletProvider
+  network: NftNetwork
+  primary: boolean
+}
+export type CreateWalletResponse = Wallet
+
+/** Input accepted by `PUT /api/wallets/:walletId`. */
+export interface UpdateWalletInput {
+  walletId: string
+  label?: string
+  address?: string
+  provider?: WalletProvider
+  network?: NftNetwork
+  primary?: boolean
+}
+export type UpdateWalletResponse = Wallet
+
 /**
  * Connection request. A registered wallet is connected by id; the manual
  * ("usar outra carteira") path sends the address typed by the collector.
@@ -55,7 +79,6 @@ export interface ConnectWalletInput {
   provider: WalletProvider
   network: NftNetwork
 }
-
 export type WalletConnectionStatus = 'connected' | 'refused'
 
 /**
@@ -71,3 +94,12 @@ export interface WalletConnection {
   /** Human-readable reason, `null` when connected. */
   reason: string | null
 }
+
+/**
+ * Networks each provider can sign for. Re-exported here so the form and the
+ * handlers share one table; the fixture owns the source of truth so contract
+ * and mock can never disagree.
+ */
+export type ProviderNetworks = typeof PROVIDER_NETWORKS
+
+

@@ -1,6 +1,5 @@
 import type { NftNetwork } from '@/features/nfts/api/contracts'
 import type { Wallet } from '@/features/wallets/api/contracts'
-import { ADDRESS_PATTERN } from '@/features/wallets/api/contracts'
 
 /**
  * Wallet fixtures (docs/PLAN.md → Seções 8 e 11).
@@ -24,13 +23,11 @@ export const PROVIDER_NETWORKS: Record<Wallet['provider'], readonly NftNetwork[]
   coinbase: ['Ethereum', 'Solana'],
   walletconnect: ['Ethereum', 'Polygon', 'Solana'],
 }
-
 export const supportsNetwork = (
   provider: Wallet['provider'],
   network: NftNetwork,
 ): boolean => PROVIDER_NETWORKS[provider].includes(network)
 
-export { ADDRESS_PATTERN }
 
 export const WALLETS: readonly WalletFixture[] = [
   {
