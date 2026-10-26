@@ -1,6 +1,13 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CircleAlertIcon, Link2Icon, PlugIcon, RotateCwIcon, UnplugIcon } from 'lucide-react'
+import {
+  CircleAlertIcon,
+  Link2Icon,
+  MoreVerticalIcon,
+  PlugIcon,
+  RotateCwIcon,
+  UnplugIcon,
+} from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +15,9 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { CartItem, QuoteResponse } from '@/features/cart/api/contracts'
 import type { Wallet, WalletConnection } from '@/features/wallets/api/contracts'
-import { WALLET_PROVIDER_LABELS } from '@/features/wallets/api/contracts'
+import {
+  WALLET_PROVIDER_LABELS,
+} from '@/features/wallets/api/contracts'
 import { isApiError } from '@/lib/api/errors'
 import { formatEth } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -38,18 +47,23 @@ interface CheckoutSummaryProps {
 const shortAddress = (address: string): string =>
   address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address
 
+/** Provider order from the mobile "Pagamento" frame. */
+const MOBILE_PROVIDER_ORDER = ['walletconnect', 'metamask', 'coinbase'] as const
+
 const SummaryRow = ({
   label,
   value,
   testId,
   strong,
+  className,
 }: {
   label: string
   value: string
   testId: string
   strong?: boolean
+  className?: string
 }) => (
-  <div className="flex items-baseline justify-between gap-4">
+  <div className={cn('flex items-baseline justify-between gap-4', className)}>
     <dt className={cn(!strong && 'text-muted-foreground')}>{label}</dt>
     <dd
       data-testid={testId}
@@ -100,8 +114,11 @@ export const CheckoutSummary = ({
     : null
 
   return (
-    <div className="flex flex-col gap-5">
-      <section aria-labelledby="itens-titulo" className="rounded-md border bg-card p-4">
+    <div className="flex flex-col gap-4 md:gap-5">
+      <section
+        aria-labelledby="itens-titulo"
+        className="order-4 rounded-xl border bg-card p-4 md:order-none md:rounded-md"
+      >
         <div className="flex items-baseline justify-between gap-2">
           <h2 id="itens-titulo" className="text-sm font-bold">
             Seus NFTs
@@ -167,7 +184,10 @@ export const CheckoutSummary = ({
         </p>
       </section>
 
-      <section aria-labelledby="valores-titulo" className="rounded-md border bg-card p-4">
+      <section
+        aria-labelledby="valores-titulo"
+        className="order-2 rounded-xl border bg-card p-4 md:order-none md:rounded-md"
+      >
         <h2 id="valores-titulo" className="sr-only">
           Resumo dos valores
         </h2>
@@ -195,24 +215,27 @@ export const CheckoutSummary = ({
               label={`Subtotal (${count} ${count === 1 ? 'peça' : 'peças'})`}
               value={formatEth(quote.data.subtotal)}
               testId="checkout-subtotal"
+              className="max-md:hidden"
             />
             {quote.data.discount !== '0' && quote.data.coupon ? (
               <SummaryRow
                 label={`Desconto ${quote.data.coupon.code} (−${quote.data.coupon.percent}%)`}
                 value={`− ${formatEth(quote.data.discount)}`}
                 testId="checkout-desconto"
+                className="max-md:hidden"
               />
             ) : null}
             <SummaryRow
               label="Taxa de rede"
               value={formatEth(quote.data.networkFee)}
               testId="checkout-taxa"
+              className="max-md:hidden"
             />
-            <div className="mt-1 flex items-baseline justify-between gap-4 border-t pt-3">
-              <span className="font-bold">Total</span>
+            <div className="mt-1 flex items-baseline justify-between gap-4 border-t pt-3 max-md:mt-0 max-md:border-0 max-md:pt-0">
+              <span className="font-bold max-md:text-sm">Total</span>
               <strong
                 data-testid="checkout-total"
-                className="text-lg text-primary tabular-nums"
+                className="text-lg text-primary tabular-nums max-md:text-xl"
               >
                 {formatEth(quote.data.total)}
               </strong>
@@ -221,8 +244,20 @@ export const CheckoutSummary = ({
         ) : null}
       </section>
 
-      <fieldset className="rounded-md border bg-card p-4">
-        <legend className="px-1 text-display text-base">Carteira e rede</legend>
+      <fieldset className="order-1 rounded-xl border bg-card p-4 md:order-none md:rounded-md">
+        <legend className="px-1 text-display text-base max-md:sr-only">Carteira e rede</legend>
+
+        <div className="mb-3 flex items-center justify-between gap-2 md:hidden">
+          <p className="text-xs font-bold">
+            {connected ? 'Carteira conectada' : 'Escolha uma carteira'}
+          </p>
+          <Link
+            to="/account/wallets"
+            className="text-[0.7rem] text-primary underline-offset-4 hover:underline"
+          >
+            Trocar carteira
+          </Link>
+        </div>
 
         {walletsPending ? (
           <div className="mt-2 flex flex-col gap-2" aria-busy="true">
@@ -250,7 +285,7 @@ export const CheckoutSummary = ({
                   key={wallet.id}
                   data-testid={`checkout-carteira-${wallet.id}`}
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-sm border p-3 transition-colors',
+                    'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors md:rounded-sm',
                     selected ? 'border-primary/70 bg-primary/5' : 'hover:bg-muted/40',
                   )}
                 >
@@ -263,7 +298,7 @@ export const CheckoutSummary = ({
                     disabled={submitting}
                     className="mt-1 size-4 shrink-0 accent-(--primary)"
                   />
-                  <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="flex flex-wrap items-center gap-2 text-sm font-bold">
                       {wallet.label}
                       {wallet.primary ? <Badge variant="secondary">principal</Badge> : null}
@@ -271,13 +306,51 @@ export const CheckoutSummary = ({
                     <span className="text-xs text-muted-foreground">
                       {WALLET_PROVIDER_LABELS[wallet.provider]} · {shortAddress(wallet.address)}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground max-md:hidden">
                       Redes: {wallet.supportedNetworks.join(' · ')}
                     </span>
                   </span>
+                  <MoreVerticalIcon
+                    aria-hidden
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground md:hidden"
+                  />
                 </label>
               )
             })}
+
+            <div className="mt-4 flex flex-col gap-2 md:hidden">
+              <p className="text-xs font-bold">Carteira e rede</p>
+              {MOBILE_PROVIDER_ORDER.map((provider) => {
+                const wallet = wallets.find((candidate) => candidate.provider === provider)
+                const selected =
+                  Boolean(wallet) && !useCustomWallet && selectedWalletId === wallet?.id
+                return (
+                  <label
+                    key={provider}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl border p-3 transition-colors',
+                      selected ? 'border-primary/70 bg-primary/5' : 'hover:bg-muted/40',
+                      !wallet && 'cursor-not-allowed opacity-45',
+                    )}
+                  >
+                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-[0.62rem] font-bold text-primary uppercase">
+                      {provider === 'walletconnect' ? 'W' : provider.charAt(0)}
+                    </span>
+                    <span className="flex-1 text-sm">{WALLET_PROVIDER_LABELS[provider]}</span>
+                    <input
+                      type="radio"
+                      name="carteira-provider"
+                      value={provider}
+                      checked={selected}
+                      onChange={() => wallet && onSelectWallet(wallet)}
+                      disabled={!wallet || submitting}
+                      className="size-4 shrink-0 accent-(--primary)"
+                      aria-label={WALLET_PROVIDER_LABELS[provider]}
+                    />
+                  </label>
+                )
+              })}
+            </div>
 
             {useCustomWallet ? (
               <p className="text-xs text-muted-foreground">
@@ -346,16 +419,23 @@ export const CheckoutSummary = ({
         </div>
       </fieldset>
 
-      <div className="flex flex-col gap-2">
+      <div className="order-3 flex flex-col gap-2 md:order-none">
         <Button
           type="submit"
-          className="w-full"
+          className="w-full max-md:h-12 max-md:rounded-full max-md:text-sm"
           disabled={submitting || Boolean(blockedReason)}
           data-testid="checkout-revisar"
         >
-          {submitting ? 'Enviando pedido…' : 'Revisar pedido'}
+          {submitting ? (
+            'Enviando pedido…'
+          ) : (
+            <>
+              <span className="md:hidden">Confirmar compra</span>
+              <span className="max-md:hidden">Revisar pedido</span>
+            </>
+          )}
         </Button>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground max-md:text-[0.68rem]">
           {blockedReason ??
             'A cotação é revalidada antes do envio: se algo mudar, você confirma de novo.'}
         </p>

@@ -55,9 +55,9 @@ export const CouponForm = ({ coupon, onApply, onRemove }: CouponFormProps) => {
     <section
       aria-labelledby="cupom-titulo"
       data-testid="carrinho-cupom"
-      className="rounded-md border bg-card p-4"
+      className="rounded-xl border bg-card p-4 max-md:border-0 max-md:bg-card max-md:p-2"
     >
-      <h2 id="cupom-titulo" className="text-sm font-bold">
+      <h2 id="cupom-titulo" className="text-sm font-bold max-md:sr-only">
         Cupom
       </h2>
 
@@ -79,7 +79,7 @@ export const CouponForm = ({ coupon, onApply, onRemove }: CouponFormProps) => {
           </Button>
         </div>
       ) : (
-        <form onSubmit={submit} className="mt-3 flex items-center gap-2">
+        <form onSubmit={submit} className="mt-3 flex items-center gap-2 max-md:mt-0">
           <label htmlFor="cupom" className="sr-only">
             Código do cupom
           </label>
@@ -98,13 +98,14 @@ export const CouponForm = ({ coupon, onApply, onRemove }: CouponFormProps) => {
             autoComplete="off"
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? 'cupom-erro' : undefined}
-            className="h-9 uppercase"
+            className="h-9 flex-1 uppercase max-md:h-11 max-md:rounded-lg max-md:border-0 max-md:bg-transparent"
           />
           <Button
             type="submit"
             size="sm"
             disabled={validate.isPending || !value.trim()}
             data-testid="carrinho-cupom-aplicar"
+            className="max-md:h-9 max-md:rounded-lg max-md:px-4"
           >
             {validate.isPending ? 'Verificando…' : 'Aplicar'}
           </Button>

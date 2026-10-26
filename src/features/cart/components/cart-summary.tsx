@@ -23,11 +23,27 @@ interface RowProps {
   value: string
   testId: string
   strong?: boolean
+  mobileLabel?: string
+  hint?: string
 }
 
-const Row = ({ label, value, testId, strong }: RowProps) => (
+const Row = ({ label, value, testId, strong, mobileLabel, hint }: RowProps) => (
   <div className="flex items-baseline justify-between gap-4">
-    <dt className={cn(!strong && 'text-muted-foreground')}>{label}</dt>
+    <dt className={cn(!strong && 'text-muted-foreground')}>
+      {mobileLabel ? (
+        <>
+          <span className="max-md:hidden">{label}</span>
+          <span className="md:hidden">{mobileLabel}</span>
+        </>
+      ) : (
+        label
+      )}
+      {hint ? (
+        <span className="mt-0.5 block text-[0.62rem] font-normal text-muted-foreground/80 md:hidden">
+          {hint}
+        </span>
+      ) : null}
+    </dt>
     <dd
       data-testid={testId}
       className={cn('tabular-nums', strong && 'font-semibold')}
@@ -86,40 +102,48 @@ export const CartSummary = ({ quote, count, coupon }: CartSummaryProps) => {
       <dl className="flex flex-col gap-2 text-sm">
         <Row
           label={`Subtotal (${count} ${count === 1 ? 'peça' : 'peças'})`}
+          mobileLabel="Subtotal"
           value={formatEth(data.subtotal)}
           testId="carrinho-subtotal"
         />
         {withDiscount && data.coupon ? (
           <Row
             label={`Desconto ${data.coupon.code} (−${data.coupon.percent}%)`}
+            mobileLabel={`Desconto ${data.coupon.code}`}
             value={`− ${formatEth(data.discount)}`}
             testId="carrinho-desconto"
           />
         ) : null}
         <Row
           label="Taxa de rede"
+          hint="Taxa estimada"
           value={formatEth(data.networkFee)}
           testId="carrinho-taxa"
         />
       </dl>
 
       <div className="flex items-baseline justify-between gap-4 border-t pt-3">
-        <span className="text-sm font-bold">Total</span>
+        <span className="text-sm font-bold max-md:text-base">Total</span>
         <strong
           data-testid="carrinho-total"
-          className="text-lg text-primary tabular-nums"
+          className="text-lg text-primary tabular-nums max-md:text-xl"
         >
           {formatEth(data.total)}
         </strong>
       </div>
 
-      <Button asChild className="mt-1 w-full" data-testid="carrinho-finalizar">
+      <Button
+        asChild
+        className="mt-1 w-full max-md:h-12 max-md:rounded-full max-md:text-sm"
+        data-testid="carrinho-finalizar"
+      >
         <Link to="/checkout" search={{ coupon }}>
-          Finalizar compra
+          <span className="md:hidden">Conectar e finalizar</span>
+          <span className="max-md:hidden">Finalizar compra</span>
         </Link>
       </Button>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground max-md:hidden">
         Valores confirmados pela API — a cotação é revalidada antes de criar o
         pedido.
       </p>

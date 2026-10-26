@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { RotateCwIcon } from 'lucide-react'
 
 import { Breadcrumb } from '@/components/layout/breadcrumb'
+import { MobilePageHeader } from '@/components/layout/mobile-page-header'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { CartLine } from '@/features/cart/components/cart-line'
@@ -31,8 +32,11 @@ const errorMessage = (error: unknown, fallback: string): string =>
 
 const PageHeader = () => (
   <>
-    <Breadcrumb items={[{ label: 'Mercado', to: '/' }, { label: 'Carrinho' }]} />
-    <h1 className="mt-6 text-3xl font-semibold tracking-tight">Carrinho</h1>
+    <MobilePageHeader title="Carrinho de NFTs" />
+    <div className="max-md:hidden">
+      <Breadcrumb items={[{ label: 'Mercado', to: '/' }, { label: 'Carrinho' }]} />
+      <h1 className="mt-6 text-3xl font-semibold tracking-tight">Carrinho</h1>
+    </div>
   </>
 )
 
@@ -112,7 +116,7 @@ export const CartScreen = ({
 
   if (cart.query.isError) {
     return (
-      <section className="shell py-10">
+      <section className="shell py-5 md:py-10">
         <PageHeader />
         <div role="alert" className="mt-8 flex flex-col items-start gap-4">
           <Alert variant="destructive">
@@ -135,10 +139,10 @@ export const CartScreen = ({
 
   if (cart.items.length === 0) {
     return (
-      <section className="shell py-10" data-testid="carrinho-vazio">
+      <section className="shell py-5 md:py-10" data-testid="carrinho-vazio">
         <PageHeader />
         {statusRegion}
-        <div className="mt-6 flex flex-col items-start gap-3 rounded-md border bg-card p-8">
+        <div className="mt-6 flex flex-col items-start gap-3 rounded-xl border bg-card p-6 md:rounded-md md:p-8">
           <h2 className="text-lg font-bold">Seu carrinho está vazio</h2>
           <p className="text-sm text-muted-foreground">
             Explore o catálogo e adicione peças para cotar seu pedido.
@@ -154,7 +158,7 @@ export const CartScreen = ({
   const alerts = quote.data?.alerts ?? []
 
   return (
-    <section className="shell py-10">
+    <section className="shell py-5 md:py-10">
       <PageHeader />
 
       {statusRegion}
@@ -182,8 +186,8 @@ export const CartScreen = ({
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_20rem]">
-        <ul className="flex flex-col gap-4">
+      <div className="mt-5 grid gap-6 md:mt-6 md:gap-8 lg:grid-cols-[1fr_20rem]">
+        <ul className="flex flex-col gap-3 md:gap-4">
           {cart.items.map((item) => (
             <CartLine
               key={item.nftId}
@@ -207,7 +211,7 @@ export const CartScreen = ({
           />
           <section
             aria-labelledby="resumo-titulo"
-            className="rounded-md border bg-card p-4"
+            className="rounded-xl border bg-card p-4 md:rounded-md"
           >
             <h2 id="resumo-titulo" className="text-sm font-bold">
               Resumo do pedido

@@ -19,7 +19,7 @@ interface CatalogToolbarProps {
  */
 export const CatalogToolbar = ({ tab, sort, onTabChange, onSortChange }: CatalogToolbarProps) => (
   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div role="tablist" aria-label="Visões do catálogo" className="flex flex-wrap items-center gap-5">
+    <div role="tablist" aria-label="Visões do catálogo" className="flex flex-wrap items-center gap-5 max-md:gap-4">
       {CATALOG_TABS.map((item) => {
         const isActive = tab === item.value
         return (
@@ -42,7 +42,7 @@ export const CatalogToolbar = ({ tab, sort, onTabChange, onSortChange }: Catalog
       })}
     </div>
 
-    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+    <label className="flex items-center gap-2 text-xs text-muted-foreground max-md:text-[0.65rem]">
       <span>Ordenar por:</span>
       <span className="relative inline-flex items-center">
         <select

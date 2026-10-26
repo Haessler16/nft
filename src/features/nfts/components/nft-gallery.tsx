@@ -49,7 +49,7 @@ export const NftGallery = ({ nft }: { nft: NftDetail }) => {
         ))}
       </div>
 
-      <div className="relative min-w-0 flex-1 overflow-hidden rounded-md border border-border/70 bg-card">
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card md:rounded-md">
         <img
           src={nft.imageUrl}
           alt={`${nft.name} — obra da coleção ${nft.collection}`}

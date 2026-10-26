@@ -1,11 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CopyIcon, HeartIcon, MinusIcon, PlusIcon, RefreshCwIcon, StarIcon } from 'lucide-react'
+import {
+  ChevronLeftIcon,
+  CopyIcon,
+  HeartIcon,
+  MinusIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  ShoppingBagIcon,
+  StarIcon,
+} from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 
 import { useSession } from '@/app/session/hooks'
 import { Breadcrumb } from '@/components/layout/breadcrumb'
+import { MobileAccountMenu } from '@/components/layout/mobile-account-menu'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +29,7 @@ import { NftGallery } from '@/features/nfts/components/nft-gallery'
 import { isApiError } from '@/lib/api/errors'
 import { formatEth } from '@/lib/money'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useIsMobile } from '@/lib/use-media-query'
 import { cn } from '@/lib/utils'
 
 /** Star row for the collector rating (average rounded to the nearest star). */
@@ -37,8 +48,16 @@ const Stars = ({ average }: { average: number }) => (
   </span>
 )
 
-const InfoRow = ({ label, children }: { label: string; children: ReactNode }) => (
-  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+const InfoRow = ({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+}) => (
+  <div className={cn('flex flex-col gap-0.5 sm:flex-row sm:gap-2', className)}>
     <dt className="font-bold sm:w-40 sm:shrink-0">{label}</dt>
     <dd className="text-muted-foreground">{children}</dd>
   </div>
@@ -76,6 +95,7 @@ export const NftDetail = ({ nft }: NftDetailProps) => {
   const { scope } = useSession()
   const favorite = useFavoriteToggle(nft.id)
   const cart = useCartMutations(scope)
+  const isMobile = useIsMobile()
 
   const [requested, setRequested] = useState(1)
   const maxQuantity = Math.max(nft.available, 0)
@@ -119,38 +139,123 @@ export const NftDetail = ({ nft }: NftDetailProps) => {
       ? 'Atualizando favoritos…'
       : ''
 
-  return (
-    <section className="shell py-8">
-      <Breadcrumb items={[{ label: 'Mercado', to: '/' }, { label: nft.name }]} />
+  /** One live region, rendered either in the mobile action bar or in the page. */
+  const statusNode = (
+    <p
+      role="status"
+      aria-live="polite"
+      data-testid="detalhe-status"
+      className={cn(
+        'text-sm',
+        isMobile ? 'min-h-4 text-xs' : 'min-h-5',
+        cart.addItem.isError || favorite.isError ? 'text-destructive' : 'text-muted-foreground',
+      )}
+    >
+      {cartStatus || favoriteStatus}
+      {cart.addItem.isSuccess && !cart.addItem.isPending ? (
+        <>
+          {' '}
+          <Link to="/cart" className="text-primary underline underline-offset-4">
+            Ver carrinho
+          </Link>
+        </>
+      ) : null}
+    </p>
+  )
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-2">
+  return (
+    <section className="shell py-5 max-md:pb-44 md:py-8">
+      {isMobile ? (
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            aria-label="Voltar"
+            onClick={() => window.history.back()}
+            className="grid size-10 place-items-center rounded-full border border-border/70 bg-card text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          >
+            <ChevronLeftIcon aria-hidden className="size-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <MobileAccountMenu className="size-10 rounded-full border border-border/70 bg-card" />
+            <button
+              type="button"
+              aria-pressed={favorite.favorited}
+              aria-label={favorite.favorited ? 'Remover dos favoritos' : 'Favoritar'}
+              onClick={favorite.toggle}
+              disabled={favorite.isPending}
+              data-testid="detalhe-favoritar"
+              className={cn(
+                'grid size-10 place-items-center rounded-full border border-border/70 bg-card focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none disabled:opacity-50',
+                favorite.favorited && 'text-primary',
+              )}
+            >
+              <HeartIcon
+                aria-hidden
+                className={cn('size-5', favorite.favorited && 'fill-current')}
+              />
+              <span className="sr-only">
+                {favorite.favorited ? 'Favoritado' : 'Favoritar'}
+              </span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className={isMobile ? 'sr-only' : undefined}>
+        <Breadcrumb items={[{ label: 'Mercado', to: '/' }, { label: nft.name }]} />
+      </div>
+
+      <div className="mt-4 grid gap-8 md:mt-6 md:gap-10 lg:grid-cols-2">
         <NftGallery nft={nft} />
 
         <div className="flex flex-col gap-5">
           <div>
-            <h1 className="text-display text-3xl">{nft.name}</h1>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-baseline gap-2 text-xl font-bold text-primary">
-                <span>{formatEth(nft.priceEth, { maxFractionDigits: 4 })}</span>
-                {nft.compareAtPriceEth ? (
-                  <s className="text-sm font-normal text-muted-foreground">
-                    {formatEth(nft.compareAtPriceEth, { maxFractionDigits: 4 })}
-                  </s>
+            <h1
+              className={cn(
+                'text-display',
+                isMobile
+                  ? 'font-sans text-[1.35rem] font-bold tracking-normal normal-case'
+                  : 'text-3xl',
+              )}
+            >
+              {nft.name}
+            </h1>
+
+            {isMobile ? (
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">{nft.collection}</p>
+                {rating ? (
+                  <p className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 px-2.5 py-1 text-[0.68rem] font-bold text-primary">
+                    <StarIcon aria-hidden className="size-3 fill-current" />
+                    {Number(rating.average).toFixed(1)}
+                    <span className="font-normal text-muted-foreground">({rating.count})</span>
+                  </p>
                 ) : null}
-              </p>
-              {rating ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Stars average={Number(rating.average)} />
-                  <span>
-                    {rating.count} avaliaç{rating.count === 1 ? 'ão' : 'ões'} de colecionadores
-                  </span>
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="flex items-baseline gap-2 text-xl font-bold text-primary">
+                  <span>{formatEth(nft.priceEth, { maxFractionDigits: 4 })}</span>
+                  {nft.compareAtPriceEth ? (
+                    <s className="text-sm font-normal text-muted-foreground">
+                      {formatEth(nft.compareAtPriceEth, { maxFractionDigits: 4 })}
+                    </s>
+                  ) : null}
                 </p>
-              ) : null}
-            </div>
+                {rating ? (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Stars average={Number(rating.average)} />
+                    <span>
+                      {rating.count} avaliaç{rating.count === 1 ? 'ão' : 'ões'} de colecionadores
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <div>
-            <h2 className="text-sm font-bold">Sobre este NFT:</h2>
+            <h2 className="text-sm font-bold max-md:hidden">Sobre este NFT:</h2>
             <p className="mt-1 text-sm text-muted-foreground">{nft.description}</p>
           </div>
 
@@ -177,7 +282,7 @@ export const NftDetail = ({ nft }: NftDetailProps) => {
                 Não há unidades desta edição à venda. Você pode continuar explorando a coleção.
               </AlertDescription>
             </Alert>
-          ) : (
+          ) : !isMobile ? (
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2" role="group" aria-label="Quantidade">
                 <Button
@@ -230,39 +335,95 @@ export const NftDetail = ({ nft }: NftDetailProps) => {
                 {favorite.favorited ? 'Favoritado' : 'Favoritar'}
               </Button>
             </div>
-          )}
+          ) : null}
 
-          <p
-            role="status"
-            aria-live="polite"
-            data-testid="detalhe-status"
-            className={cn(
-              'min-h-5 text-sm',
-              cart.addItem.isError || favorite.isError ? 'text-destructive' : 'text-muted-foreground',
-            )}
-          >
-            {cartStatus || favoriteStatus}
-            {cart.addItem.isSuccess && !cart.addItem.isPending ? (
-              <>
-                {' '}
-                <Link to="/cart" className="text-primary underline underline-offset-4">
-                  Ver carrinho
-                </Link>
-              </>
-            ) : null}
-          </p>
+          {!isMobile || soldOut ? statusNode : null}
+
+          {isMobile && !soldOut ? (
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 px-4 pt-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden">
+              <div className="mx-auto flex max-w-lg flex-col gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2" role="group" aria-label="Quantidade">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Diminuir quantidade"
+                      disabled={quantity <= 1}
+                      onClick={() => setRequested(quantity - 1)}
+                      className="size-8 rounded-full"
+                    >
+                      <MinusIcon aria-hidden />
+                    </Button>
+                    <output
+                      aria-live="polite"
+                      className="w-6 text-center text-sm font-bold tabular-nums"
+                    >
+                      {quantity}
+                    </output>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Aumentar quantidade"
+                      disabled={quantity >= maxQuantity}
+                      onClick={() => setRequested(quantity + 1)}
+                      className="size-8 rounded-full"
+                    >
+                      <PlusIcon aria-hidden />
+                    </Button>
+                    <span className="text-[0.7rem] text-muted-foreground">
+                      máx. {maxQuantity}
+                    </span>
+                  </div>
+
+                  <p className="text-base font-bold text-primary tabular-nums">
+                    {formatEth(nft.priceEth, { maxFractionDigits: 4 })}
+                  </p>
+                </div>
+
+                {statusNode}
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={addToCart}
+                    disabled={cart.addItem.isPending}
+                    data-testid="detalhe-comprar"
+                    className="h-12 flex-1 rounded-xl text-sm"
+                  >
+                    {cart.addItem.isPending ? 'Adicionando…' : 'Comprar NFT'}
+                  </Button>
+                  <Button
+                    asChild
+                    type="button"
+                    variant="outline"
+                    className="size-12 shrink-0 rounded-xl p-0"
+                  >
+                    <Link to="/cart" aria-label="Abrir carrinho">
+                      <ShoppingBagIcon aria-hidden className="size-5" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <dl className="flex flex-col gap-1.5 border-t pt-4 text-sm">
             <InfoRow label="ID do token:">#{nft.tokenId}</InfoRow>
             <InfoRow label="Coleção:">{nft.collection}</InfoRow>
-            <InfoRow label="Criador:">{nft.creator.name}</InfoRow>
-            <InfoRow label="Categoria:">{nft.category}</InfoRow>
+            <InfoRow label="Criador:" className="max-md:hidden">
+              {nft.creator.name}
+            </InfoRow>
+            <InfoRow label="Categoria:" className="max-md:hidden">
+              {nft.category}
+            </InfoRow>
             <InfoRow label="Atributos:">
               {nft.attributes.map((attribute) => attribute.value).join(', ')}
             </InfoRow>
           </dl>
 
-          <div className="flex flex-wrap items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm max-md:hidden">
             <span className="text-muted-foreground">Compartilhar este NFT:</span>
             <Button type="button" variant="ghost" size="xs" onClick={() => void copyLink()}>
               <CopyIcon aria-hidden />
@@ -272,22 +433,27 @@ export const NftDetail = ({ nft }: NftDetailProps) => {
         </div>
       </div>
 
-      <Tabs defaultValue="detalhes" className="mt-12 border-t pt-6">
+      <Tabs defaultValue="detalhes" className="mt-8 border-t pt-6 md:mt-12">
         <TabsList
           variant="line"
-          className="h-auto w-full justify-start gap-6 rounded-none border-b border-border/70 p-0"
+          className="h-auto w-full flex-wrap justify-start gap-4 rounded-none border-b border-border/70 p-0 md:flex-nowrap md:gap-6"
         >
           <TabsTrigger
             value="detalhes"
-            className="flex-none rounded-none border-b-2 border-transparent px-0 pb-3 text-sm font-bold uppercase tracking-[0.1em] data-[state=active]:border-primary data-[state=active]:text-primary"
+            className="flex-none rounded-none border-b-2 border-transparent px-0 pb-3 text-xs font-bold uppercase tracking-[0.1em] data-[state=active]:border-primary data-[state=active]:text-primary md:text-sm"
           >
-            Detalhes do NFT
+            <span className="md:hidden">Descrição</span>
+            <span className="max-md:hidden">Detalhes do NFT</span>
           </TabsTrigger>
           <TabsTrigger
             value="avaliacoes"
-            className="flex-none rounded-none border-b-2 border-transparent px-0 pb-3 text-sm font-bold uppercase tracking-[0.1em] data-[state=active]:border-primary data-[state=active]:text-primary"
+            aria-label={`Avaliações de colecionadores (${nft.reviews.length})`}
+            className="flex-none rounded-none border-b-2 border-transparent px-0 pb-3 text-xs font-bold uppercase tracking-[0.1em] data-[state=active]:border-primary data-[state=active]:text-primary md:text-sm"
           >
-            Avaliações de colecionadores ({nft.reviews.length})
+            <span className="md:hidden">Avaliações ({nft.reviews.length})</span>
+            <span className="max-md:hidden">
+              Avaliações de colecionadores ({nft.reviews.length})
+            </span>
           </TabsTrigger>
         </TabsList>
 

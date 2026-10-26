@@ -4,6 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { EditorialBanners } from '@/components/home/editorial-banners'
 import { HomeHero } from '@/components/home/home-hero'
 import { JournalSection } from '@/components/home/journal-section'
+import { MobileHomeHeader } from '@/components/home/mobile-home-header'
 import { CatalogSection } from '@/features/nfts/components/catalog-section'
 import type { PriceRange } from '@/features/nfts/components/catalog-filters'
 import { nftListQueryOptions } from '@/features/nfts/api/queries'
@@ -16,6 +17,7 @@ import {
   type CatalogTab,
 } from '@/features/nfts/catalog-search'
 import type { NftSort } from '@/features/nfts/api/contracts'
+import { useIsMobile } from '@/lib/use-media-query'
 
 export const Route = createFileRoute('/')({
   validateSearch: catalogSearchSchema,
@@ -41,6 +43,7 @@ export const Route = createFileRoute('/')({
 function HomeRoute() {
   const search = resolveCatalogSearch(Route.useSearch())
   const navigate = Route.useNavigate()
+  const isMobile = useIsMobile()
 
   const query = useQuery(nftListQueryOptions(toNftListParams(search)))
 
@@ -66,8 +69,17 @@ function HomeRoute() {
   const onApplyPrice = (range: PriceRange) =>
     update({ min: range.min, max: range.max, page: 1 })
 
+  const openMobileFilters = () => {
+    const details = document.getElementById('catalogo-filtros-mobile')
+    if (details instanceof HTMLDetailsElement) {
+      details.open = true
+      details.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
   return (
     <>
+      {isMobile ? <MobileHomeHeader onOpenFilters={openMobileFilters} /> : null}
       <HomeHero />
 
       <CatalogSection

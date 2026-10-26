@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createFileRoute } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { EyeIcon, EyeOffIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useSession } from '@/app/session/hooks'
@@ -11,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EMAIL_PATTERN } from '@/features/auth/api/contracts'
 import { AuthFrame } from '@/features/auth/components/auth-frame'
+import { SocialAuth } from '@/features/auth/components/social-auth'
 import { DEMO_ACCOUNTS } from '@/features/auth/demo'
 import { isApiError } from '@/lib/api/errors'
 
@@ -55,6 +58,7 @@ function LoginRoute() {
   const navigate = Route.useNavigate()
   const { login, isAuthenticated } = useSession()
   const target = safeInternalPath(redirect)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Already signed in (session restored by refresh, or a second tab): leave the
   // login screen instead of showing a form the user cannot use.
@@ -122,12 +126,15 @@ function LoginRoute() {
     >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="login-email">E-mail</Label>
+          <Label htmlFor="login-email" className="max-md:sr-only">
+            E-mail
+          </Label>
           <Input
             id="login-email"
             type="email"
             autoComplete="email"
-            placeholder="contato@email.com"
+            placeholder="seu@email.com"
+            className="max-md:h-12 max-md:rounded-lg max-md:bg-white/[0.02] max-md:px-4"
             aria-invalid={errors.email ? true : undefined}
             aria-describedby={errors.email ? 'login-email-erro' : undefined}
             {...register('email')}
@@ -140,25 +147,73 @@ function LoginRoute() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="login-senha">Senha</Label>
-          <Input
-            id="login-senha"
-            type="password"
-            autoComplete="current-password"
-            aria-invalid={errors.password ? true : undefined}
-            aria-describedby={errors.password ? 'login-senha-erro' : undefined}
-            {...register('password')}
-          />
+          <Label htmlFor="login-senha" className="max-md:sr-only">
+            Senha
+          </Label>
+          <div className="relative">
+            <Input
+              id="login-senha"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="Sua senha"
+              className="max-md:h-12 max-md:rounded-lg max-md:bg-white/[0.02] max-md:px-4 max-md:pr-12"
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={errors.password ? 'login-senha-erro' : undefined}
+              {...register('password')}
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+            >
+              {showPassword ? (
+                <EyeOffIcon aria-hidden className="size-4" />
+              ) : (
+                <EyeIcon aria-hidden className="size-4" />
+              )}
+            </button>
+          </div>
           {errors.password ? (
             <p id="login-senha-erro" role="alert" className="text-sm text-destructive">
               {errors.password.message}
             </p>
           ) : null}
+          <div className="flex justify-end md:hidden">
+            <button
+              type="button"
+              onClick={() =>
+                toast.info('Recuperação de senha não faz parte desta demonstração.')
+              }
+              className="text-[0.7rem] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Esqueceu a senha?
+            </button>
+          </div>
         </div>
 
-        <Button type="submit" className="w-full" disabled={login.isPending}>
+        <Button
+          type="submit"
+          className="w-full max-md:h-12 max-md:rounded-lg max-md:text-sm"
+          disabled={login.isPending}
+        >
           {login.isPending ? 'Entrando…' : 'Entrar'}
         </Button>
+
+        <div className="md:hidden">
+          <SocialAuth />
+        </div>
+
+        <p className="text-center text-xs text-muted-foreground md:hidden">
+          Novo na Kurio?{' '}
+          <Link
+            to="/register"
+            search={{ redirect }}
+            className="font-bold text-primary underline-offset-4 hover:underline"
+          >
+            Crie uma conta
+          </Link>
+        </p>
       </form>
     </AuthFrame>
   )

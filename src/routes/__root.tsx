@@ -1,7 +1,13 @@
-import { createRootRouteWithContext, HeadContent, Outlet } from '@tanstack/react-router'
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  useRouterState,
+} from '@tanstack/react-router'
 
 import type { RouterContext } from '@/app/router-context'
 import { NotFoundState, RouteErrorState } from '@/components/feedback/route-states'
+import { MobileTabBar } from '@/components/layout/mobile-tab-bar'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { SiteHeader } from '@/components/layout/site-header'
 
@@ -36,6 +42,26 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 })
 
 function RootLayout() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+
+  /**
+   * Screens with their own mobile frame (auth, home, detail, cart, checkout).
+   * The desktop header/footer stay mounted for their tests and desktop layout,
+   * but are removed from the mobile visual flow.
+   */
+  const immersive =
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/cart' ||
+    pathname === '/checkout' ||
+    pathname.startsWith('/nfts/')
+
+  const isHome = pathname === '/'
+  const needsAccountShim =
+    pathname === '/cart' || pathname === '/checkout' || pathname.startsWith('/nfts/')
+  const hideFooterOnMobile = immersive && !isHome
+
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <HeadContent />
@@ -45,11 +71,21 @@ function RootLayout() {
       >
         Pular para o conteúdo
       </a>
-      <SiteHeader />
-      <main id="conteudo" className="flex-1">
+      <div className={immersive ? 'hidden md:block' : undefined}>
+        <SiteHeader />
+      </div>
+      <main
+        id="conteudo"
+        className={
+          isHome ? 'flex-1 max-md:pb-24' : needsAccountShim ? 'flex-1 max-md:pb-10' : 'flex-1'
+        }
+      >
         <Outlet />
       </main>
-      <SiteFooter />
+      <div className={hideFooterOnMobile ? 'hidden md:block' : undefined}>
+        <SiteFooter />
+      </div>
+      {isHome ? <MobileTabBar /> : null}
     </div>
   )
 }

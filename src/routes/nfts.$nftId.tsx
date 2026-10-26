@@ -41,7 +41,13 @@ export const Route = createFileRoute('/nfts/$nftId')({
 /** 404 inside the shell: the header keeps working, the message explains what happened. */
 function NftNotFound() {
   return (
-    <section className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 px-4 py-24 sm:px-6">
+    <section className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 px-4 py-12 sm:px-6 sm:py-24">
+      <Link
+        to="/"
+        className="rounded-sm text-xs font-bold tracking-[0.3em] md:hidden"
+      >
+        KURIO
+      </Link>
       <p className="text-sm font-medium text-muted-foreground">Erro 404</p>
       <h1 className="text-3xl font-semibold tracking-tight">Este NFT não está disponível</h1>
       <p className="text-muted-foreground">

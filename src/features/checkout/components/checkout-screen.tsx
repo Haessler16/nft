@@ -7,6 +7,7 @@ import { useForm, useWatch } from 'react-hook-form'
 
 import { useSession } from '@/app/session/hooks'
 import { Breadcrumb } from '@/components/layout/breadcrumb'
+import { MobilePageHeader } from '@/components/layout/mobile-page-header'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,14 +88,17 @@ const buildDefaults = (user: SessionUser | null): CheckoutValues => {
 
 const CheckoutHeader = () => (
   <>
-    <Breadcrumb
-      items={[
-        { label: 'Início', to: '/' },
-        { label: 'Mercado', to: '/' },
-        { label: 'Pagamento' },
-      ]}
-    />
-    <h1 className="mt-6 text-display text-3xl">Pagamento</h1>
+    <MobilePageHeader title="Pagamento com carteira" />
+    <div className="max-md:hidden">
+      <Breadcrumb
+        items={[
+          { label: 'Início', to: '/' },
+          { label: 'Mercado', to: '/' },
+          { label: 'Pagamento' },
+        ]}
+      />
+      <h1 className="mt-6 text-display text-3xl">Pagamento</h1>
+    </div>
   </>
 )
 
@@ -378,7 +382,7 @@ export const CheckoutScreen = ({ coupon }: { coupon?: string }) => {
 
   if (activeOrderId) {
     return (
-      <section className="shell py-10">
+      <section className="shell py-5 md:py-10">
         <CheckoutHeader />
         <div className="mt-6">
           <OrderOutcome
@@ -393,7 +397,7 @@ export const CheckoutScreen = ({ coupon }: { coupon?: string }) => {
 
   if (cart.query.isPending) {
     return (
-      <section className="shell py-10" aria-busy="true">
+      <section className="shell py-5 md:py-10" aria-busy="true">
         <CheckoutHeader />
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_24rem]">
           <div className="flex flex-col gap-4">
@@ -420,7 +424,7 @@ export const CheckoutScreen = ({ coupon }: { coupon?: string }) => {
 
   if (cart.query.isError) {
     return (
-      <section className="shell py-10">
+      <section className="shell py-5 md:py-10">
         <CheckoutHeader />
         <div role="alert" className="mt-8 flex flex-col items-start gap-4">
           <Alert variant="destructive">
@@ -442,7 +446,7 @@ export const CheckoutScreen = ({ coupon }: { coupon?: string }) => {
 
   if (cart.items.length === 0) {
     return (
-      <section className="shell py-10" data-testid="checkout-vazio">
+      <section className="shell py-5 md:py-10" data-testid="checkout-vazio">
         <CheckoutHeader />
         <div className="mt-6 flex flex-col items-start gap-3 rounded-md border bg-card p-8">
           <h2 className="text-lg font-bold">Nada para pagar</h2>
@@ -459,7 +463,7 @@ export const CheckoutScreen = ({ coupon }: { coupon?: string }) => {
   }
 
   return (
-    <section className="shell py-10">
+    <section className="shell py-5 md:py-10">
       <CheckoutHeader />
 
       {submitError ? (
@@ -479,15 +483,17 @@ export const CheckoutScreen = ({ coupon }: { coupon?: string }) => {
         id="checkout-form"
         noValidate
         onSubmit={form.handleSubmit(handleReview)}
-        className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]"
+        className="mt-5 flex flex-col gap-6 md:mt-8 md:grid md:gap-8 lg:grid-cols-[minmax(0,1fr)_24rem]"
       >
-        <CheckoutForm
-          form={form}
-          locked={submitting}
-          onUseCustomWalletChange={handleUseCustomWallet}
-        />
+        <div className="order-2 md:order-none">
+          <CheckoutForm
+            form={form}
+            locked={submitting}
+            onUseCustomWalletChange={handleUseCustomWallet}
+          />
+        </div>
 
-        <aside className="h-fit">
+        <aside className="order-1 h-fit md:order-none">
           <CheckoutSummary
             quote={quote}
             items={cart.items}

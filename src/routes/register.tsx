@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createFileRoute } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { EyeIcon, EyeOffIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EMAIL_PATTERN, isStrongPassword, PASSWORD_RULE } from '@/features/auth/api/contracts'
 import { AuthFrame } from '@/features/auth/components/auth-frame'
+import { SocialAuth } from '@/features/auth/components/social-auth'
 import { isApiError } from '@/lib/api/errors'
 
 /**
@@ -69,6 +71,8 @@ function RegisterRoute() {
   const navigate = Route.useNavigate()
   const { signup, isAuthenticated } = useSession()
   const target = safeInternalPath(redirect)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) void navigate({ href: target, replace: true })
@@ -110,7 +114,7 @@ function RegisterRoute() {
   return (
     <AuthFrame
       active="register"
-      title="Criar conta"
+      title="Criar perfil de colecionador"
       description="Crie sua conta para colecionar, favoritar e comprar com a sua carteira."
       redirect={redirect}
       footer={
@@ -121,11 +125,14 @@ function RegisterRoute() {
     >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="register-nome">Nome</Label>
+          <Label htmlFor="register-nome" className="max-md:sr-only">
+            Nome
+          </Label>
           <Input
             id="register-nome"
             autoComplete="name"
-            placeholder="Como você quer ser chamado"
+            placeholder="Nome de usuário"
+            className="max-md:h-12 max-md:rounded-lg max-md:bg-white/[0.02] max-md:px-4"
             aria-invalid={errors.name ? true : undefined}
             aria-describedby={errors.name ? 'register-nome-erro' : undefined}
             {...register('name')}
@@ -134,12 +141,15 @@ function RegisterRoute() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="register-email">E-mail</Label>
+          <Label htmlFor="register-email" className="max-md:sr-only">
+            E-mail
+          </Label>
           <Input
             id="register-email"
             type="email"
             autoComplete="email"
-            placeholder="contato@email.com"
+            placeholder="Digite seu e-mail"
+            className="max-md:h-12 max-md:rounded-lg max-md:bg-white/[0.02] max-md:px-4"
             aria-invalid={errors.email ? true : undefined}
             aria-describedby={errors.email ? 'register-email-erro' : undefined}
             {...register('email')}
@@ -148,39 +158,97 @@ function RegisterRoute() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="register-senha">Senha</Label>
-          <Input
-            id="register-senha"
-            type="password"
-            autoComplete="new-password"
-            aria-invalid={errors.password ? true : undefined}
-            aria-describedby={
-              errors.password ? 'register-senha-erro register-senha-ajuda' : 'register-senha-ajuda'
-            }
-            {...register('password')}
-          />
-          <p id="register-senha-ajuda" className="text-xs text-muted-foreground">
+          <Label htmlFor="register-senha" className="max-md:sr-only">
+            Senha
+          </Label>
+          <div className="relative">
+            <Input
+              id="register-senha"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="Senha"
+              className="max-md:h-12 max-md:rounded-lg max-md:bg-white/[0.02] max-md:px-4 max-md:pr-12"
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={
+                errors.password
+                  ? 'register-senha-erro register-senha-ajuda'
+                  : 'register-senha-ajuda'
+              }
+              {...register('password')}
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+            >
+              {showPassword ? (
+                <EyeOffIcon aria-hidden className="size-4" />
+              ) : (
+                <EyeIcon aria-hidden className="size-4" />
+              )}
+            </button>
+          </div>
+          <p id="register-senha-ajuda" className="text-xs text-muted-foreground max-md:hidden">
             {PASSWORD_RULE.message}
           </p>
           {fieldError('register-senha-erro', errors.password?.message)}
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="register-confirmar">Confirmar senha</Label>
-          <Input
-            id="register-confirmar"
-            type="password"
-            autoComplete="new-password"
-            aria-invalid={errors.confirm ? true : undefined}
-            aria-describedby={errors.confirm ? 'register-confirmar-erro' : undefined}
-            {...register('confirm')}
-          />
+          <Label htmlFor="register-confirmar" className="max-md:sr-only">
+            Confirmar senha
+          </Label>
+          <div className="relative">
+            <Input
+              id="register-confirmar"
+              type={showConfirm ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="Confirmar senha"
+              className="max-md:h-12 max-md:rounded-lg max-md:bg-white/[0.02] max-md:px-4 max-md:pr-12"
+              aria-invalid={errors.confirm ? true : undefined}
+              aria-describedby={errors.confirm ? 'register-confirmar-erro' : undefined}
+              {...register('confirm')}
+            />
+            <button
+              type="button"
+              aria-label={showConfirm ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'}
+              onClick={() => setShowConfirm((visible) => !visible)}
+              className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+            >
+              {showConfirm ? (
+                <EyeOffIcon aria-hidden className="size-4" />
+              ) : (
+                <EyeIcon aria-hidden className="size-4" />
+              )}
+            </button>
+          </div>
           {fieldError('register-confirmar-erro', errors.confirm?.message)}
         </div>
 
-        <Button type="submit" className="w-full" disabled={signup.isPending}>
-          {signup.isPending ? 'Criando conta…' : 'Criar conta'}
+        <Button
+          type="submit"
+          aria-label="Criar conta"
+          className="w-full max-md:h-12 max-md:rounded-lg max-md:text-sm"
+          disabled={signup.isPending}
+        >
+          {signup.isPending ? 'Criando conta…' : 'Criar perfil'}
         </Button>
+
+        <div className="md:hidden">
+          <SocialAuth />
+        </div>
+
+        <p className="text-center text-xs text-muted-foreground md:hidden">
+          Já tem uma conta?{' '}
+          <Link
+            to="/login"
+            search={{ redirect }}
+            className="font-bold text-primary underline-offset-4 hover:underline"
+          >
+            Entre
+          </Link>
+        </p>
       </form>
     </AuthFrame>
   )

@@ -50,7 +50,7 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
 
   return (
     <article className={cn('group/card flex flex-col gap-2', className)}>
-      <div className="relative overflow-hidden rounded-md bg-card">
+      <div className="relative overflow-hidden rounded-xl bg-card md:rounded-md">
         <Link
           to="/nfts/$nftId"
           params={{ nftId: nft.id }}
@@ -71,17 +71,17 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
         {nft.rarity ? (
           <Badge
             variant="outline"
-            className="absolute top-2 right-2 rounded-sm border-primary/50 bg-background/80 text-[0.6rem] tracking-[0.14em] text-primary uppercase"
+            className="absolute top-2 right-2 rounded-sm border-primary/50 bg-background/80 text-[0.6rem] tracking-[0.14em] text-primary uppercase max-md:right-auto max-md:left-2"
           >
             {nft.rarity}
           </Badge>
         ) : null}
 
         {showActions ? (
-          <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 pb-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100 motion-reduce:transition-none">
+          <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 pb-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100 motion-reduce:transition-none max-md:inset-x-auto max-md:top-2 max-md:right-2 max-md:bottom-auto max-md:pb-0 max-md:opacity-100">
             <button
               type="button"
-              className={hoverActionClass}
+              className={cn(hoverActionClass, 'max-md:hidden')}
               disabled={cart.addItem.isPending}
               onClick={addToCart}
               aria-label={`Adicionar ${nft.name} ao carrinho`}
@@ -90,7 +90,11 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
             </button>
             <button
               type="button"
-              className={cn(hoverActionClass, favorite.favorited && 'text-primary')}
+              className={cn(
+                hoverActionClass,
+                'max-md:size-8 max-md:bg-background/80 max-md:shadow-sm',
+                favorite.favorited && 'text-primary',
+              )}
               disabled={favorite.isPending}
               aria-pressed={favorite.favorited}
               aria-label={
@@ -100,12 +104,12 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
               }
               onClick={favorite.toggle}
             >
-              <HeartIcon aria-hidden className={cn('size-3.5', favorite.favorited && 'fill-current')} />
+              <HeartIcon aria-hidden className={cn('size-3.5 max-md:size-4', favorite.favorited && 'fill-current')} />
             </button>
             <Link
               to="/nfts/$nftId"
               params={{ nftId: nft.id }}
-              className={hoverActionClass}
+              className={cn(hoverActionClass, 'max-md:hidden')}
               aria-label={`Ver detalhes de ${nft.name}`}
             >
               <SearchIcon aria-hidden className="size-3.5" />
