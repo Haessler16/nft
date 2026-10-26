@@ -117,33 +117,35 @@ export const OrdersHistoryScreen = ({ scope }: { scope: UserScope }) => {
                   to="/orders/$orderId"
                   params={{ orderId: order.id }}
                   data-testid={`pedidos-linha-${order.id}`}
-                  className="flex flex-wrap items-center gap-4 rounded-md border bg-card p-4 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                  className="flex flex-col gap-3 rounded-md border bg-card p-4 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-4"
                 >
-                  <img
-                    src={order.lines[0]?.imageUrl ?? ''}
-                    alt=""
-                    width={48}
-                    height={48}
-                    loading="lazy"
-                    className="size-12 shrink-0 rounded-sm object-cover"
-                  />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-bold">
-                      {order.lines[0]?.name ?? 'Pedido'}
-                      {order.lines.length > 1 ? (
-                        <span className="font-normal text-muted-foreground">
-                          {' '}
-                          e mais {order.lines.length - 1}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      <span className="font-mono">{order.id}</span> ·{' '}
-                      {formatListDate(order.createdAt)} · {order.lines.length}{' '}
-                      {order.lines.length === 1 ? 'item' : 'itens'}
+                  <span className="flex min-w-0 items-center gap-3 sm:flex-1">
+                    <img
+                      src={order.lines[0]?.imageUrl ?? ''}
+                      alt=""
+                      width={48}
+                      height={48}
+                      loading="lazy"
+                      className="size-12 shrink-0 rounded-sm object-cover"
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm font-bold">
+                        {order.lines[0]?.name ?? 'Pedido'}
+                        {order.lines.length > 1 ? (
+                          <span className="font-normal text-muted-foreground">
+                            {' '}
+                            e mais {order.lines.length - 1}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-mono">{order.id}</span> ·{' '}
+                        {formatListDate(order.createdAt)} · {order.lines.length}{' '}
+                        {order.lines.length === 1 ? 'item' : 'itens'}
+                      </span>
                     </span>
                   </span>
-                  <span className="flex items-center gap-3">
+                  <span className="flex items-center justify-between gap-3 pl-15 sm:justify-end sm:pl-0">
                     <Badge variant={status.variant}>{status.label}</Badge>
                     <span className="text-sm font-semibold tabular-nums">
                       {formatEth(order.totals.total)}

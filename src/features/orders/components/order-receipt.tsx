@@ -121,9 +121,9 @@ export const OrderReceipt = ({ order }: { order: Order }) => {
         <h3 className="text-sm font-bold">Detalhes da transação</h3>
 
         <div className="flex flex-col">
-          <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_7rem] gap-3 border-b pb-2 text-xs font-bold text-muted-foreground uppercase">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b pb-2 text-xs font-bold text-muted-foreground uppercase sm:grid-cols-[minmax(0,1fr)_4.5rem_7rem]">
             <span>NFTs</span>
-            <span className="text-center">Edições</span>
+            <span className="hidden text-center sm:block">Edições</span>
             <span className="text-right">Subtotal</span>
           </div>
 
@@ -132,7 +132,7 @@ export const OrderReceipt = ({ order }: { order: Order }) => {
               <li
                 key={line.nftId}
                 data-testid={`recibo-linha-${line.nftId}`}
-                className="grid grid-cols-[minmax(0,1fr)_4.5rem_7rem] items-center gap-3 py-3"
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_4.5rem_7rem]"
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <img
@@ -141,7 +141,7 @@ export const OrderReceipt = ({ order }: { order: Order }) => {
                     width={48}
                     height={48}
                     loading="lazy"
-                    className="size-12 shrink-0 rounded-sm object-cover"
+                    className="size-10 shrink-0 rounded-sm object-cover sm:size-12"
                   />
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-bold">{line.name}</span>
@@ -150,10 +150,13 @@ export const OrderReceipt = ({ order }: { order: Order }) => {
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {formatEth(line.unitPrice)} cada
+                      <span className="sm:hidden"> · (x {line.quantity})</span>
                     </span>
                   </span>
                 </span>
-                <span className="text-center text-sm tabular-nums">(x {line.quantity})</span>
+                <span className="hidden text-center text-sm tabular-nums sm:block">
+                  (x {line.quantity})
+                </span>
                 <span className="text-right text-sm font-semibold text-primary tabular-nums">
                   {formatEth(line.lineTotal)}
                 </span>
