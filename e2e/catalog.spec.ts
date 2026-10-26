@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { resetMocks } from './helpers'
+
 /**
  * Catalog flows (docs/PLAN.md → Seção 5).
  *
@@ -7,27 +9,6 @@ import { expect, test, type Page } from '@playwright/test'
  * Filters, sort and pagination must live in the URL, so the assertions check
  * `page.url()` as well as the rendered result.
  */
-
-const waitForMocks = async (page: Page) => {
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready
-    if (!navigator.serviceWorker.controller) {
-      await new Promise<void>((resolve) =>
-        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), {
-          once: true,
-        }),
-      )
-    }
-  })
-}
-
-const resetMocks = async (page: Page) => {
-  await page.goto('/')
-  await waitForMocks(page)
-  await page.evaluate(async () => {
-    await fetch('/api/__mock/reset', { method: 'POST' })
-  })
-}
 
 const cardNames = (page: Page) =>
   page.locator('#catalogo ul > li h3').allTextContents()
