@@ -122,9 +122,9 @@ export const handlers = [
   ...profileHandlers,
   ...orderHandlers,
   ...nftHandlers,
-]
-
-export const allHandlers = [
-  ...handlers,
+  // The Socket.IO link has to be registered with the worker itself: MSW's
+  // WebSocket interceptor only mocks connections when at least one `ws` handler
+  // is listening (otherwise every socket is passed through to the real network,
+  // where no Socket.IO server exists and the client times out).
   ...realtimeHandlers,
 ]

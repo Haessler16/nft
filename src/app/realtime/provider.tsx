@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { useSession } from '@/app/session/hooks'
@@ -138,36 +138,51 @@ export const RealtimeProvider = ({ children }: { children?: ReactNode }) => {
       setAnnouncement(copy ? copy(event.resourceId) : `Pedido ${event.resourceId} atualizado.`)
     }
 
-    const socket: Socket = io({
-      transports: ['websocket'],
-      autoConnect: false,
-      reconnection: true,
-      reconnectionDelay: 400,
-      reconnectionDelayMax: 2_000,
-      timeout: 4_000,
-    })
-
     setRealtimeStatus('connecting')
-    socket.on('connect', () => {
-      setRealtimeStatus('connected')
-      // Reconciliation after every (re)connection: active resources are re-read
-      // from REST, so a change missed while offline cannot stay on screen.
-      void queryClient.invalidateQueries({ refetchType: 'active' })
-    })
-    socket.on('disconnect', () => setRealtimeStatus('disconnected'))
-    socket.on('connect_error', () => setRealtimeStatus('disconnected'))
-    socket.on('nft.updated', handleEvent)
-    socket.on('order.updated', handleEvent)
-    socket.connect()
+
+    let cancelled = false
+    let socket: Socket | null = null
+
+    const connect = async () => {
+      // Import after `worker.start()` has patched `globalThis.WebSocket`:
+      // engine.io-client captures that global when its module is evaluated, so
+      // a static import would keep the native constructor and bypass MSW.
+      const { io } = await import('socket.io-client')
+      if (cancelled) return
+
+      socket = io({
+        transports: ['websocket'],
+        autoConnect: false,
+        reconnection: true,
+        reconnectionDelay: 400,
+        reconnectionDelayMax: 2_000,
+        timeout: 4_000,
+      })
+
+      socket.on('connect', () => {
+        setRealtimeStatus('connected')
+        // Reconciliation after every (re)connection: active resources are re-read
+        // from REST, so a change missed while offline cannot stay on screen.
+        void queryClient.invalidateQueries({ refetchType: 'active' })
+      })
+      socket.on('disconnect', () => setRealtimeStatus('disconnected'))
+      socket.on('connect_error', () => setRealtimeStatus('disconnected'))
+      socket.on('nft.updated', handleEvent)
+      socket.on('order.updated', handleEvent)
+      socket.connect()
+    }
+
+    void connect()
 
     return () => {
+      cancelled = true
       if (nftTimerRef.current !== null) {
         clearTimeout(nftTimerRef.current)
         nftTimerRef.current = null
       }
       nftBatchRef.current = 0
-      socket.removeAllListeners()
-      socket.close()
+      socket?.removeAllListeners()
+      socket?.close()
       resetRealtimeVersions()
       setRealtimeStatus('idle')
     }

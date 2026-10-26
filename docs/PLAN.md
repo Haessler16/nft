@@ -477,8 +477,15 @@ que o projeto deve declarar.
 ## Seção 15 — Deploy e entrega
 
 - [ ] Deploy (Vercel/Netlify/Cloudflare Pages) com mocks e socket ativos
-- [ ] Rewrite SPA para acesso direto e refresh em qualquer rota
-- [ ] Confirmar que a versão publicada corresponde ao código entregue
+      — o deploy em Vercel saiu **sem os mocks**: `.env.production` é ignorado
+      pelo git, então o build da CI não tinha `VITE_ENABLE_MOCKS` e o fallback
+      antigo era `false` → toda rota `/api/*` respondia 404 do Vercel. Corrigido
+      em `src/lib/env.ts` (fallback `true`); falta o novo deploy para confirmar.
+- [x] Rewrite SPA para acesso direto e refresh em qualquer rota —
+      [`vercel.json`](../vercel.json) com `"/((?!api/).*)"` (sem capturar
+      `/api/*`, que o MSW resolve no navegador)
+- [ ] Confirmar que a versão publicada corresponde ao código entregue — pendente
+      do novo deploy após a correção dos mocks e das correções de conta (Seção 11)
 - [ ] README final: setup, env, credenciais fictícias, cenários, comandos, reprodução
       dos fluxos de falha
 - [ ] `ARCHITECTURE.md` final: contratos, eventos, sessão, carrinho, cache,

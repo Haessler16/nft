@@ -65,15 +65,18 @@ começa com `POST /api/__mock/reset` e roda nos três viewports configurados.
 
 ## Variáveis de ambiente
 
-Documentadas em [.env.example](.env.example). Os `.env.development` e
-`.env.production` versionados já ligam os mocks, porque a aplicação publicada é a
-demonstração.
+Documentadas em [.env.example](.env.example). **Nenhum `.env` é obrigatório
+para rodar nem publicar**: `src/lib/env.ts` já liga os mocks por padrão, porque
+não existe API real atrás de `/api/*`. Os arquivos locais
+`.env.development`/`.env.production` são apenas overrides e ficam fora do git
+(`.gitignore`) — a ausência deles em um clone/CI foi o que derrubou o primeiro
+deploy em Vercel (build sem env → MSW desligado → 404 em toda rota `/api/*`).
 
 | Variável | Padrão | Função |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `/api` | base do único cliente Axios (same-origin para o MSW interceptar) |
 | `VITE_SOCKET_URL` | origem atual | origem usada pelo `socket.io-client` |
-| `VITE_ENABLE_MOCKS` | `false` nos defaults, `true` nos `.env` versionados | sobe o MSW antes do primeiro render |
+| `VITE_ENABLE_MOCKS` | `true` (ligado no código) | sobe o MSW antes do primeiro render; use `false` só para apontar a uma API real |
 | `VITE_MOCK_SCENARIO` | `default` | cenário determinístico de mocks |
 
 ## Credenciais demo

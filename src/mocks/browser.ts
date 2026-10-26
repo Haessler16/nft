@@ -5,8 +5,9 @@ import { handlers } from '@/mocks/handlers'
 /**
  * Service worker used by development, the demo build and Playwright.
  *
- * Only HTTP request handlers are registered here. The WebSocket link
- * (`realtimeHandlers`) is started separately by the runtime that needs it
- * (docs/PLAN.md → Seção 10), because `setupWorker` only accepts `AnyHandler`.
+ * HTTP handlers and the WebSocket link (`realtimeHandlers`) are registered
+ * together: `setupWorker` accepts `AnyHandler`, and MSW only mocks WebSocket
+ * connections when a `ws` handler is present — without one, the socket is
+ * passed through to the network and the handshake times out (Seção 10).
  */
 export const worker: SetupWorkerApi = setupWorker(...handlers)

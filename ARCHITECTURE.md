@@ -35,10 +35,16 @@ Camadas e regras de dependência:
   Router (que gera `src/routeTree.gen.ts` e faz code splitting por rota).
 - `npm run build` roda `tsr generate && tsc -b && vite build`: typecheck bloqueia o
   build, e a geração de rotas garante tipos atualizados em checkout limpo.
-- O build é estático (`dist/`). O deploy exige rewrite SPA (`/* → /index.html`) para
-  acesso direto e refresh em qualquer rota.
-- `.env.production` mantém `VITE_ENABLE_MOCKS=true`: a versão publicada é a demo e
-  precisa do MSW e do realtime simulado funcionando.
+- O build é estático (`dist/`). O deploy precisa de rewrite SPA
+  (`/* → /index.html`) para acesso direto e refresh em qualquer rota; no Vercel
+  isso vive em [`vercel.json`](vercel.json) com `"/((?!api/).*)"`, que **não**
+  captura `/api/*` — o MSW intercepta essas rotas no navegador, e deixá-las
+  fora mantém um 404 real visível caso os mocks não subam.
+- Os mocks são ligados **por padrão no código** (`src/lib/env.ts`):
+  um build a partir de um clone limpo (sem `.env.*`, como o CI do Vercel) sobe o
+  MSW sem nenhuma configuração. `VITE_ENABLE_MOCKS=false` é o opt-out para um
+  deploy que aponte para uma API real. Os `.env.development`/`.env.production`
+  locais são apenas overrides e ficam fora do git (`.gitignore`).
 
 ## 3. Roteamento e estado na URL
 
@@ -202,7 +208,8 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
   `localStorage` e restaurável por `POST /api/__mock/reset` — usado pelo botão de
   demo e pelo `beforeEach` dos testes E2E.
 - Serviço Worker em `public/mockServiceWorker.js`, iniciado por
-  [src/mocks/index.ts](src/mocks/index.ts) somente quando `VITE_ENABLE_MOCKS=true`,
+  [src/mocks/index.ts](src/mocks/index.ts) sempre que `env.mocksEnabled` for `true`
+  (o padrão; `VITE_ENABLE_MOCKS=false` desliga em builds para uma API real),
   antes do primeiro render; o worker é importado dinamicamente para não entrar no
   bundle quando os mocks estão desligados.
 - Handlers compartilham os tipos de `contracts.ts` com a aplicação; o estado simulado

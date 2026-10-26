@@ -144,7 +144,7 @@ export const setRealtimeRelay = (enabled: boolean): void => {
 
 const socketHandler = ws.link('/')
 
-socketHandler.addEventListener('connection', (connection) => {
+const connectionHandler = socketHandler.addEventListener('connection', (connection) => {
   if (!relayEnabled) {
     // Outage window: refuse the handshake so socket.io keeps retrying with its
     // backoff instead of believing it is connected to a silent server.
@@ -179,4 +179,4 @@ if (channel) {
 }
 
 /** Registered with the MSW handlers (see `handlers/index.ts`). */
-export const realtimeHandlers = [socketHandler]
+export const realtimeHandlers = [connectionHandler]
