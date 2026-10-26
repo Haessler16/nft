@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { resetMocks, setScenario, signIn, waitForMocks } from './helpers'
+import { resetMocks, signIn, waitForMocks } from './helpers'
 
 /** E2E para as capacidades de conta que faltaram cobertura (docs/PLAN.md → Seção 11).
  *
