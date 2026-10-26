@@ -13,7 +13,8 @@ import {
   supportsNetwork,
   ADDRESS_PATTERN,
 } from '@/features/wallets/api/contracts'
-import { db, type WalletFixture } from '@/mocks/db'
+import { db } from '@/mocks/db'
+import type { WalletFixture } from '@/mocks/db'
 import { errorEnvelope, notFound, unauthorized } from '@/mocks/handlers/envelope'
 
 /**
@@ -46,10 +47,8 @@ const isProvider = (value: unknown): value is ConnectWalletInput['provider'] =>
 const isNetwork = (value: unknown): value is NftNetwork =>
   value === 'Ethereum' || value === 'Polygon' || value === 'Solana'
 
-const ProviderNetworksRecord: Record<ConnectWalletInput['provider'], readonly string[]> = PROVIDER_NETWORKS
-
 const validateWalletInput = (
-  input: CreateWalletInput | UpdateWalletInput,
+  input: Partial<CreateWalletInput | UpdateWalletInput>,
 ): Record<string, string> => {
   const fields: Record<string, string> = {}
   if (typeof input.label === 'string') {
@@ -71,7 +70,8 @@ const validateWalletInput = (
     fields.network = 'Escolha uma rede.'
   }
   if (typeof input.provider === 'string' && typeof input.network === 'string') {
-    if (!ProviderNetworksRecord[input.provider]?.includes(input.network)) {
+    const providerNetworks = PROVIDER_NETWORKS[input.provider as ConnectWalletInput['provider']]
+    if (providerNetworks && !providerNetworks.includes(input.network as NftNetwork)) {
       fields.network = 'Este provedor não dá suporte à rede escolhida.'
     }
   }
@@ -105,7 +105,7 @@ export const walletHandlers = [
       label: input.label!.trim(),
       provider: input.provider as WalletFixture['provider'],
       address: input.address!.trim(),
-      network: input.network as WalletFixture['network'],
+      network: (input.network as WalletFixture['network']) ?? 'Ethereum',
       primary: input.primary ?? false,
     })
 
@@ -116,7 +116,7 @@ export const walletHandlers = [
     const userId = sessionUserId()
     if (!userId) return unauthorized()
 
-    const walletId = params.walletId
+    const walletId = params.walletId as string
     const existing = db.findWallet(userId, walletId)
     if (!existing) return notFound('Carteira não encontrada.')
 
@@ -132,9 +132,9 @@ export const walletHandlers = [
 
     const wallet = db.updateWallet(userId, walletId, {
       label: input.label?.trim() ?? existing.label,
-      provider: input.provider as WalletFixture['provider'] ?? existing.provider,
+      provider: (input.provider as WalletFixture['provider']) ?? existing.provider,
       address: input.address?.trim() ?? existing.address,
-      network: input.network as WalletFixture['network'] ?? existing.network,
+      network: (input.network as WalletFixture['network']) ?? existing.network,
       primary: input.primary ?? existing.primary,
     })
 
@@ -147,7 +147,7 @@ export const walletHandlers = [
     const userId = sessionUserId()
     if (!userId) return unauthorized()
 
-    const walletId = params.walletId
+    const walletId = params.walletId as string
     const deleted = db.deleteWallet(userId, walletId)
 
     if (!deleted) {

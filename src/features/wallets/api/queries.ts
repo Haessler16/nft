@@ -4,11 +4,11 @@ import { fetchWallets } from '@/features/wallets/api/endpoints'
 import { queryKeys, type UserScope } from '@/lib/query/keys'
 
 /**
- * Registered wallets for the signed-in collector (docs/PLAN.md → Seção 8).
+ * Carteiras cadastradas do colecionista autenticado (docs/PLAN.md → Seção 8).
  *
- * Keyed by scope like every private resource, so a user switch can never show
- * another account's addresses, and the checkout reads the same entry the
- * wallets screen will use in Seção 11.
+ * A chave usa o escopo da sessão, como todo recurso privado, então uma troca
+ * de usuário nunca expõe os endereços de outra conta e a tela de carteiras
+ * na Seção 11 lê exatamente a mesma entrada que o checkout usa.
  */
 export const walletsQueryOptions = (scope: UserScope, enabled = true) =>
   queryOptions({

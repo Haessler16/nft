@@ -77,7 +77,7 @@ export const ProfileEditor = ({
       className="flex flex-col gap-6"
       noValidate
     >
-      <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <Field>
           <FieldLabel htmlFor="displayName">Nome</FieldLabel>
           <FieldContent>
@@ -136,7 +136,7 @@ export const ProfileEditor = ({
         </Field>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 pt-2 border-t border-border">
         <FieldLabel htmlFor="avatar">Avatar</FieldLabel>
         <div className="flex flex-wrap items-center gap-3">
           <label
@@ -160,7 +160,7 @@ export const ProfileEditor = ({
             <img
               src={preview}
               alt=""
-              className="size-10 rounded-full object-cover ring-1 ring-border"
+              className="h-12 w-12 rounded-full object-cover ring-1 ring-border"
               data-testid="perfil-avatar-preview"
             />
           )}
@@ -177,7 +177,7 @@ export const ProfileEditor = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 justify-end">
+      <div className="flex flex-wrap gap-3 justify-end pt-2 border-t border-border">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>

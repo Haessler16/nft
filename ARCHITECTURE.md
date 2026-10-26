@@ -361,6 +361,22 @@ uma vez e os erros reais (401/404/rede) são propagados intactos.
 - Foco visível global, skip link no root, foco preso em dialog/drawer (Radix), erros
   associados por `aria-describedby`, feedback de mutação e de evento em `aria-live`.
 
+### Layout mobile de perfil e carteiras (Seção 11)
+
+As telas de perfil (`/account/profile`) e carteiras (`/account/wallets`) não têm
+frame no Figma, então o layout mobile foi definido arbitrariamente seguindo os
+princípios do design system:
+
+- **Perfil**: formulário vertical único, sem abas no mobile. O seletor de tabs
+  Dados/Senha vira uma lista de opções simples. O avatar com preview ocupa toda
+  a largura disponível, com o botão de remover abaixo.
+- **Carteiras**: lista de carteiras com botões de editar/remover, sem comando de
+  busca no mobile. O formulário de criação/edição ocupa toda a largura e usa
+  um layout vertical simples.
+
+Ambos os layouts foram verificados em 390px (mobile) e 768px (tablet) para evitar
+overflow horizontal e manter os elementos acessíveis.
+
 ## 13. Design system e assets (KURIO)
 
 Identidade extraída dos frames em `nft img/`:

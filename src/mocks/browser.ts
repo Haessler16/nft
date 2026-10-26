@@ -1,10 +1,12 @@
-import { setupWorker } from 'msw/browser'
+import { setupWorker, type SetupWorkerApi } from 'msw/browser'
 
 import { handlers } from '@/mocks/handlers'
 
 /**
  * Service worker used by development, the demo build and Playwright.
- * Socket.IO events are intercepted by the same worker once
- * `@mswjs/socket.io-binding` is wired in docs/PLAN.md → Seção 10.
+ *
+ * Only HTTP request handlers are registered here. The WebSocket link
+ * (`realtimeHandlers`) is started separately by the runtime that needs it
+ * (docs/PLAN.md → Seção 10), because `setupWorker` only accepts `AnyHandler`.
  */
-export const worker = setupWorker(...handlers)
+export const worker: SetupWorkerApi = setupWorker(...handlers)

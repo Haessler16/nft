@@ -14,7 +14,7 @@ import {
   type WalletProvider,
 } from '@/features/wallets/api/contracts'
 import { db, type StoredOrder } from '@/mocks/db'
-import { ADDRESS_PATTERN, supportsNetwork } from '@/mocks/fixtures/wallets'
+import { ADDRESS_PATTERN, supportsNetwork } from '@/features/wallets/api/contracts'
 import { normalizeCoupon } from '@/mocks/fixtures/coupons'
 import {
   errorEnvelope,

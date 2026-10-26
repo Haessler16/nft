@@ -226,6 +226,7 @@ export const db = {
       name: input.name.trim(),
       email: input.email.trim(),
       passwordHash: input.passwordHash,
+      bio: null,
       avatarUrl: null,
     }
     update((current) => ({ users: [...current.users, user] }))
@@ -321,7 +322,7 @@ export const db = {
     return {
       displayName: user.name,
       email: user.email,
-      bio: '',
+      bio: user.bio ?? '',
       avatarUrl: user.avatarUrl,
     }
   },
@@ -336,7 +337,10 @@ export const db = {
   ) {
     const user = state.users.find((candidate) => candidate.id === userId)
     if (!user) return null
-    const next: UserFixture = { ...user }
+    const next: UserFixture = {
+      ...user,
+      bio: patch.bio !== undefined ? patch.bio : user.bio,
+    }
     if (patch.displayName !== undefined) next.name = patch.displayName
     if (patch.email !== undefined) next.email = patch.email
     if (patch.avatarUrl !== undefined) next.avatarUrl = patch.avatarUrl
@@ -346,7 +350,7 @@ export const db = {
     return {
       displayName: next.name,
       email: next.email,
-      bio: '',
+      bio: next.bio ?? '',
       avatarUrl: next.avatarUrl,
     }
   },

@@ -11,9 +11,10 @@ import {
 } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import type { ChangePasswordInputSchema } from '@/features/profile/schema'
-import { PASSWORD_FIELD_ERRORS } from '@/features/profile/api/contracts'
-import { z } from 'zod'
+import { PASSWORD_FIELD_ERRORS } from '@/features/profile/api/endpoints'
+import { changePasswordSchema } from '@/features/profile/schema'
 
 interface PasswordFormProps {
   submitting: boolean
@@ -112,20 +113,3 @@ export const PasswordForm = ({
     </form>
   )
 }
-
-function cn(...values: (string | undefined)[]): string {
-  return values.filter(Boolean).join(' ')
-}
-
-const changePasswordSchema = z
-  .object({
-    currentPassword: z
-      .string()
-      .min(1, 'Informe a senha atual.'),
-    newPassword: z
-      .string()
-      .min(8, 'A nova senha precisa ter ao menos 8 caracteres, com letras e números.')
-      .regex(/[a-zA-Z]/, 'A nova senha precisa ter ao menos 8 caracteres, com letras e números.')
-      .regex(/\d/, 'A nova senha precisa ter ao menos 8 caracteres, com letras e números.'),
-  })
-  .strict()

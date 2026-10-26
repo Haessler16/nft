@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { useSession } from '@/app/session/hooks'
 import { useUpdateProfile, useChangePassword } from '@/features/profile/api/mutations'
 import type { UpdateProfileInput } from '@/features/profile/api/contracts'
@@ -37,43 +38,48 @@ export const ProfileForm = ({
   onCancelSave,
   onCancelChangePassword,
 }: ProfileFormProps) => {
-  void user
-  void loading
-  void onSave
-  void onChangePassword
-  void onCancelSave
-  void onCancelChangePassword
-
   const { scope } = useSession()
   const updateMutation = useUpdateProfile(scope)
   const changePasswordMutation = useChangePassword(scope)
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('dados')
   const [editing, setEditing] = useState(false)
+  const originalRef = useRef(profile)
+
+  useEffect(() => {
+    originalRef.current = profile
+  }, [profile])
+
+  const original = originalRef.current
+  const hasChanges =
+    profile.displayName !== original.displayName ||
+    profile.email !== original.email ||
+    (profile.bio ?? '') !== (original.bio ?? '') ||
+    (profile.avatarUrl ?? null) !== (original.avatarUrl ?? null)
 
   const handleSave = useCallback(
     (input: UpdateProfileInput) => {
-      updateMutation.mutate(input)
+      onSave(input)
     },
-    [updateMutation],
+    [onSave],
   )
 
   const handleCancelSave = useCallback(() => {
     setEditing(false)
-  }, [])
+    onCancelSave()
+  }, [onCancelSave])
 
   const handleChangePassword = useCallback(
     (values: ChangePasswordInputSchema) => {
-      changePasswordMutation.mutate({
-        currentPassword: values.currentPassword,
-        newPassword: values.newPassword,
-      })
+      onChangePassword(values)
     },
-    [changePasswordMutation],
+    [onChangePassword],
   )
 
   const handleCancelChangePassword = useCallback(() => {
-  }, [])
+    setEditing(false)
+    onCancelChangePassword()
+  }, [onCancelChangePassword])
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,69 +124,84 @@ export const ProfileForm = ({
             onCancel={handleCancelSave}
           />
         ) : (
-          <dl className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-card p-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <dt className="text-xs text-muted-foreground">Nome</dt>
-              <dd className="text-sm font-medium">{profile.displayName}</dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="text-xs text-muted-foreground">E-mail</dt>
-              <dd className="text-sm font-medium">{profile.email}</dd>
-            </div>
-            <div className="sm:col-span-2 flex flex-col gap-1">
-              <dt className="text-xs text-muted-foreground">Biografia</dt>
-              <dd className="text-sm text-muted-foreground">
-                {profile.bio || 'Sem biografia.'}
-              </dd>
-            </div>
-            {profile.avatarUrl && (
-              <div className="sm:col-span-2 flex items-center gap-3">
-                <dt className="text-xs text-muted-foreground">Avatar</dt>
-                <img
-                  src={profile.avatarUrl}
-                  alt=""
-                  className="h-10 w-10 rounded-full object-cover ring-1 ring-border"
-                />
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <dt className="text-xs text-muted-foreground">Nome</dt>
+                <dd className="text-sm font-medium text-foreground">{profile.displayName}</dd>
               </div>
-            )}
-          </dl>
+              <div className="flex flex-col gap-1">
+                <dt className="text-xs text-muted-foreground">E-mail</dt>
+                <dd className="text-sm font-medium text-foreground">{profile.email}</dd>
+              </div>
+              <div className="sm:col-span-2 flex flex-col gap-1">
+                <dt className="text-xs text-muted-foreground">Biografia</dt>
+                <dd className="text-sm text-muted-foreground">
+                  {profile.bio || 'Sem biografia.'}
+                </dd>
+              </div>
+              {profile.avatarUrl && (
+                <div className="sm:col-span-2 flex items-center gap-3 pt-2 border-t border-border">
+                  <dt className="text-xs text-muted-foreground">Avatar</dt>
+                  <img
+                    src={profile.avatarUrl}
+                    alt=""
+                    className="h-12 w-12 rounded-full object-cover ring-1 ring-border"
+                  />
+                </div>
+              )}
+            </dl>
+          </div>
         )
       ) : (
-        <PasswordForm
-          submitting={saving || changePasswordMutation.isPending}
-          onSubmit={handleChangePassword}
-          onCancel={handleCancelChangePassword}
-        />
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <PasswordForm
+            submitting={saving || changePasswordMutation.isPending}
+            onSubmit={handleChangePassword}
+            onCancel={handleCancelChangePassword}
+          />
+        </div>
       )}
 
       {activeTab === 'dados' && (
         <div className="flex flex-wrap gap-3 justify-end border-t border-border pt-4">
           {editing ? (
             <>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                disabled={updateMutation.isPending || saving}
                 onClick={handleCancelSave}
-                className="rounded-md border border-input bg-transparent px-4 py-2 text-sm transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                disabled={!hasChanges || saving}
-                onClick={() => setEditing(true)}
-                className="rounded-md border border-input bg-transparent px-4 py-2 text-sm transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 disabled:pointer-events-none"
+                disabled={!hasChanges || updateMutation.isPending || saving}
+                onClick={() => {
+                  updateMutation.mutate(
+                    {
+                      displayName: profile.displayName,
+                      email: profile.email,
+                      bio: profile.bio ?? undefined,
+                      avatarUrl: profile.avatarUrl ?? null,
+                    },
+                    { onSuccess: () => setEditing(false) },
+                  )
+                }}
               >
-                Editar
-              </button>
+                {updateMutation.isPending || saving ? 'Salvando…' : 'Salvar'}
+              </Button>
             </>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              disabled={loading}
               onClick={() => setEditing(true)}
-              className="rounded-md border border-input bg-transparent px-4 py-2 text-sm transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               Editar perfil
-            </button>
+            </Button>
           )}
         </div>
       )}

@@ -2,16 +2,12 @@ import { useState, useMemo } from 'react'
 
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { WalletProvider } from '@/features/wallets/api/contracts'
+
+import type { Wallet } from '@/features/wallets/api/contracts'
 
 interface WalletCommandProps {
-  wallets: ReadonlyArray<{
-    id: string
-    label: string
-    address: string
-    provider: WalletProvider
-  }>
-  onSelect: (wallet: WalletCommandProps['wallets'][number]) => void
+  wallets: ReadonlyArray<Wallet>
+  onSelect: (wallet: Wallet) => void
 }
 
 const CommandInput = ({
@@ -110,7 +106,6 @@ export const WalletCommand = ({ wallets, onSelect }: WalletCommandProps) => {
           {results.map((wallet) => (
             <CommandItem
               key={wallet.id}
-              value={wallet.id}
               onSelect={() => {
                 setSearch('')
                 onSelect(wallet)

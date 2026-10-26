@@ -1,29 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { requireSession } from '@/app/guards'
-import { RoutePlaceholder } from '@/components/feedback/route-placeholder'
+import { ProfilePage } from '@/features/profile/components/profile-page'
 
 export const Route = createFileRoute('/account/profile')({
   beforeLoad: requireSession,
   head: () => ({
     meta: [{ title: 'Perfil — NFT Market' }],
   }),
-  component: ProfileRoute,
+  component: ProfilePage,
 })
-
-function ProfileRoute() {
-  return (
-    <RoutePlaceholder
-      title="Perfil do colecionador"
-      path="/account/profile"
-      section="docs/PLAN.md → Seção 11"
-      requirements={[
-        'Rota privada com layout responsivo (inclui mobile sem frame no Figma)',
-        'Edição de nome, bio e e-mail com validação e erros da API',
-        'Alteração de avatar com pré-visualização e persistência',
-        'Alteração de senha com validação e reautenticação',
-        'Alterações confirmadas permanecem após refresh',
-      ]}
-    />
-  )
-}

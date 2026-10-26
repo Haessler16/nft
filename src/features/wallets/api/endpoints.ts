@@ -9,11 +9,19 @@ import type {
 } from '@/features/wallets/api/contracts'
 import { http } from '@/lib/api/client'
 
+/** Lista as carteiras cadastradas do usuário autenticado. */
 export const fetchWallets = async (signal?: AbortSignal): Promise<WalletsResponse> => {
   const { data } = await http.get<WalletsResponse>('/wallets', { signal })
   return data
 }
 
+/**
+ * Simula a conexão com a extensão de carteira (docs/PLAN.md → Seção 8).
+ *
+ * Uma recusa é `200` com `status: "refused"` (o contrato modela um extension
+ * que responde "rede errada"), então não é erro aqui: o checkout mostra o
+ * motivo ao lado dos controles de carteira e mantém o formulário reversível.
+ */
 export const connectWallet = async (
   input: ConnectWalletInput,
 ): Promise<WalletConnection> => {
@@ -21,6 +29,7 @@ export const connectWallet = async (
   return data
 }
 
+/** Cadastra uma nova carteira para o usuário autenticado. */
 export const createWallet = async (
   input: CreateWalletInput,
   signal?: AbortSignal,
@@ -29,6 +38,7 @@ export const createWallet = async (
   return data
 }
 
+/** Edita uma carteira existente pelo id. */
 export const updateWallet = async (
   input: UpdateWalletInput,
   signal?: AbortSignal,
@@ -38,6 +48,7 @@ export const updateWallet = async (
   return data
 }
 
+/** Remove uma carteira secundária. A principal não pode ser removida. */
 export const deleteWallet = async (
   walletId: string,
   signal?: AbortSignal,

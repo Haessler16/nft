@@ -10,6 +10,13 @@ import {
 import { updateProfile } from '@/features/profile/api/endpoints'
 import { queryKeys, type UserScope } from '@/lib/query/keys'
 
+/**
+ * Atualiza o perfil do usuário autenticado e invalida o cache do perfil.
+ *
+ * O sucesso aciona o `aria-live` do formulário via `toast.success`; o erro
+ * de API é mostrado no toast porque o formulário já mostra os erros de campo
+ * vindos do schema, e o erro de servidor é um estado global.
+ */
 export const useUpdateProfile = (scope: UserScope) => {
   const queryClient = useQueryClient()
 
@@ -30,6 +37,12 @@ export const useUpdateProfile = (scope: UserScope) => {
   })
 }
 
+/**
+ * Troca a senha com reautenticação (docs/PLAN.md → Seção 11).
+ *
+ * O contrato retorna `CURRENT_WRONG` ou `NEW_WEAK`; a mutação transforma
+ * isso em feedback de campo via toast, igual ao que o formulário espera.
+ */
 export const useChangePassword = (scope: UserScope) => {
   const queryClient = useQueryClient()
 
@@ -67,6 +80,7 @@ export const useChangePassword = (scope: UserScope) => {
   })
 }
 
+/** Chaves auxiliares para subconsultas do perfil, no mesmo escopo privado. */
 export const profileQueryKeys = {
   edit: (scope: UserScope) => [...queryKeys.profile.byUser(scope), 'edit'] as const,
   password: (scope: UserScope) => [...queryKeys.profile.byUser(scope), 'password'] as const,

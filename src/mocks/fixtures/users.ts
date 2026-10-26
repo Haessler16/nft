@@ -16,6 +16,7 @@ export interface UserFixture {
   name: string
   email: string
   passwordHash: string
+  bio: string | null
   avatarUrl: string | null
 }
 
@@ -44,6 +45,7 @@ export const USERS: readonly UserFixture[] = DEMO_ACCOUNTS.map((account) => ({
   name: account.name,
   email: account.email,
   passwordHash: hashPassword(account.password),
+  bio: null,
   avatarUrl: null,
 }))
 

@@ -1,28 +1,32 @@
 import type { NftNetwork } from '@/features/nfts/api/contracts'
-import { PROVIDER_NETWORKS, supportsNetwork } from '@/mocks/fixtures/wallets'
 
 /**
- * Wallet contracts (docs/PLAN.md → Seções 8 e 11).
+ * Carteiras do colecionista (docs/PLAN.md → Seções 8 e 11).
  *
- * A wallet is a *registered* address the collector can pay with; the checkout
- * only ever offers what `GET /api/wallets` returned for the signed-in user, and
- * the connection is simulated through the API (`POST /api/wallets/connect`) so
- * component state is never the source of truth for "this wallet works".
+ * Uma carteira é um endereço cadastrado que o pagamento pode usar; o
+ * checkout só oferece o que `GET /api/wallets` devolveu para o usuário
+ * autenticado. A conexão é simulada pela API (`POST /api/wallets/connect`),
+ * nunca pelo estado local do componente, para que o formulário e os testes
+ * exercitem exatamente a mesma resposta do servidor.
  *
- * The provider decides which networks can be used: refusing an unsupported
- * combination is a deterministic rule of the mock, not a UI guess.
+ * O provedor define quais redes podem assinar a transação; recusar uma
+ * combinação não suportada é regra determinística do mock, não palpite da UI.
  */
 export const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
-export { PROVIDER_NETWORKS, supportsNetwork }
-export type { ProviderNetworks }
 
 export const WALLET_PROVIDERS = ['metamask', 'walletconnect', 'coinbase'] as const
 export type WalletProvider = (typeof WALLET_PROVIDERS)[number]
 
-/**
- * Address rule shared by the form, the wallet handler and the order handler:
- * `0x` + 40 hexadecimal characters. One regex, one message, three layers.
- */
+export const PROVIDER_NETWORKS: Record<WalletProvider, readonly NftNetwork[]> = {
+  metamask: ['Ethereum', 'Polygon'],
+  coinbase: ['Ethereum', 'Solana'],
+  walletconnect: ['Ethereum', 'Polygon', 'Solana'],
+}
+
+export const supportsNetwork = (
+  provider: WalletProvider,
+  network: NftNetwork,
+): boolean => PROVIDER_NETWORKS[provider].includes(network)
 
 export const WALLET_PROVIDER_LABELS: Record<WalletProvider, string> = {
   metamask: 'MetaMask',
@@ -30,15 +34,15 @@ export const WALLET_PROVIDER_LABELS: Record<WalletProvider, string> = {
   coinbase: 'Coinbase Wallet',
 }
 
-/** Registered wallet, exactly as the API answers it. */
+/** Carteira cadastrada, exatamente no formato que a API devolve. */
 export interface Wallet {
   id: string
   label: string
   provider: WalletProvider
-  /** Full `0x…` address (the UI truncates it for display). */
+  /** Endereço completo `0x…` (a UI truncada só para exibição). */
   address: string
   network: NftNetwork
-  /** Networks this wallet can sign for; the checkout enforces the union. */
+  /** Redes que esta carteira pode assinar; o checkout usa a união. */
   supportedNetworks: NftNetwork[]
   primary: boolean
 }
@@ -47,7 +51,7 @@ export interface WalletsResponse {
   wallets: Wallet[]
 }
 
-/** Input accepted by `POST /api/wallets`. */
+/** Payload aceito por `POST /api/wallets`. */
 export interface CreateWalletInput {
   label: string
   address: string
@@ -57,7 +61,7 @@ export interface CreateWalletInput {
 }
 export type CreateWalletResponse = Wallet
 
-/** Input accepted by `PUT /api/wallets/:walletId`. */
+/** Payload aceito por `PUT /api/wallets/:walletId`. */
 export interface UpdateWalletInput {
   walletId: string
   label?: string
@@ -69,9 +73,9 @@ export interface UpdateWalletInput {
 export type UpdateWalletResponse = Wallet
 
 /**
- * Connection request. A registered wallet is connected by id; the manual
- * ("usar outra carteira") path sends the address typed by the collector.
- * `walletId` wins when both are present.
+ * Requisição de conexão. Uma carteira cadastrada se conecta por `walletId`;
+ * o fluxo manual ("usar outra carteira") envia o endereço digitado pelo
+ * colecionista. Quando ambos estão presentes, `walletId` prevalece.
  */
 export interface ConnectWalletInput {
   walletId?: string | null
@@ -82,24 +86,18 @@ export interface ConnectWalletInput {
 export type WalletConnectionStatus = 'connected' | 'refused'
 
 /**
- * Refusal is a business outcome, not an HTTP failure: it answers `200` with
- * `status: "refused"` and a reason the UI can show next to the control, the
- * same way a wallet extension reports "wrong network" without breaking the page.
+ * Recusa é um desfecho de negócio, não um erro HTTP: a API responde `200`
+ * com `status: "refused"` e um motivo que a UI mostra ao lado do controle,
+ * igual ao jeito que um extension reporta "wrong network" sem quebrar a tela.
  */
 export interface WalletConnection {
   status: WalletConnectionStatus
   provider: WalletProvider
   address: string
   network: NftNetwork
-  /** Human-readable reason, `null` when connected. */
+  /** Motivo legível, `null` quando conectada. */
   reason: string | null
 }
 
-/**
- * Networks each provider can sign for. Re-exported here so the form and the
- * handlers share one table; the fixture owns the source of truth so contract
- * and mock can never disagree.
- */
+/** Redes que cada provedor pode assinar. Reexportada aqui para formulário e handlers compartilharem uma única tabela. */
 export type ProviderNetworks = typeof PROVIDER_NETWORKS
-
-

@@ -8,6 +8,7 @@ import { errorEnvelope } from '@/mocks/handlers/envelope'
 import { favoriteHandlers } from '@/mocks/handlers/favorites'
 import { nftHandlers } from '@/mocks/handlers/nfts'
 import { orderHandlers } from '@/mocks/handlers/orders'
+import { profileHandlers } from '@/mocks/handlers/profile'
 import { quoteHandlers } from '@/mocks/handlers/quote'
 import { sessionHandlers } from '@/mocks/handlers/session'
 import { walletHandlers } from '@/mocks/handlers/wallets'
@@ -113,12 +114,17 @@ export const handlers = [
   scenarioHandler,
   injectEventHandler,
   realtimeControlHandler,
-  ...realtimeHandlers,
   ...sessionHandlers,
   ...favoriteHandlers,
   ...cartHandlers,
   ...quoteHandlers,
   ...walletHandlers,
+  ...profileHandlers,
   ...orderHandlers,
   ...nftHandlers,
+]
+
+export const allHandlers = [
+  ...handlers,
+  ...realtimeHandlers,
 ]

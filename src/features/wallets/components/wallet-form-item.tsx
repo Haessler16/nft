@@ -3,9 +3,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
+import type { NftNetwork } from '@/features/nfts/api/contracts'
 import {
   WALLET_PROVIDER_LABELS,
+  WALLET_PROVIDERS,
   PROVIDER_NETWORKS,
+  supportsNetwork,
   type WalletProvider,
   type Wallet,
 } from '@/features/wallets/api/contracts'
@@ -54,7 +57,7 @@ const walletSchema = z.object({
     .trim()
     .min(1, 'Informe o endereço da carteira.')
     .regex(ADDRESS_PATTERN, 'Use um endereço 0x com 40 caracteres hexadecimais.'),
-  provider: z.nativeEnum(WALLET_PROVIDER_LABELS, {
+  provider: z.enum(WALLET_PROVIDERS, {
     message: 'Escolha o tipo de carteira.',
   }),
   network: z.string().min(1, 'Escolha uma rede.'),
@@ -62,7 +65,7 @@ const walletSchema = z.object({
 }).refine(
   (data) => {
     if (!data.provider || !data.network) return true
-    return supportsNetwork(data.provider, data.network)
+    return supportsNetwork(data.provider, data.network as NftNetwork)
   },
   {
     message:
@@ -71,7 +74,7 @@ const walletSchema = z.object({
   },
 )
 
-type WalletFormValues = z.infer<typeof walletSchema>
+export type WalletFormValues = z.infer<typeof walletSchema>
 
 export interface WalletFormItemProps {
   wallet: Wallet
@@ -80,8 +83,9 @@ export interface WalletFormItemProps {
 
 /** Display card for one registered wallet (Seção 11). */
 export function WalletFormItem({ wallet, onEdit }: WalletFormItemProps) {
-  const updateMutation = useUpdateWallet()
-  const deleteMutation = useDeleteWallet()
+  const { scope } = useSession()
+  const updateMutation = useUpdateWallet(scope)
+  const deleteMutation = useDeleteWallet(scope)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -94,30 +98,36 @@ export function WalletFormItem({ wallet, onEdit }: WalletFormItemProps) {
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center justify-between gap-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-offset-background ring-1 ring-ring/50">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={cn(
+                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-offset-background ring-1 ring-ring/50',
+                wallet.primary
+                  ? 'bg-primary/10 text-primary ring-primary/20'
+                  : 'bg-secondary/10 text-secondary-foreground ring-secondary/20',
+              )}>
                 {wallet.primary ? 'Principal' : 'Secundária'}
               </span>
-              {wallet.primary ? (
-                <span className="text-xs text-muted-foreground">Carteira por padrão</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">Carteira secundária</span>
-              )}
+              <span className="text-xs text-muted-foreground">
+                {wallet.primary ? 'Carteira por padrão' : 'Carteira secundária'}
+              </span>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {wallet.label} — {wallet.address}
+            <p className="mt-2 text-sm font-medium text-foreground">
+              {wallet.label}
+            </p>
+            <p className="mt-0.5 text-xs font-mono text-muted-foreground">
+              {wallet.address}
             </p>
             <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-md border-border bg-muted/50 p-2">
+              <div className="rounded-md border border-border bg-muted/30 p-2">
                 <dt className="text-muted-foreground">Provedor</dt>
-                <dd className="font-medium">{wallet.provider}</dd>
+                <dd className="font-medium text-foreground">{wallet.provider}</dd>
               </div>
-              <div className="rounded-md border-border bg-muted/50 p-2">
+              <div className="rounded-md border border-border bg-muted/30 p-2">
                 <dt className="text-muted-foreground">Rede</dt>
-                <dd className="font-medium">{wallet.network}</dd>
+                <dd className="font-medium text-foreground">{wallet.network}</dd>
               </div>
             </dl>
           </div>
@@ -133,7 +143,10 @@ export function WalletFormItem({ wallet, onEdit }: WalletFormItemProps) {
           </div>
         </div>
         {wallet.primary && (
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
+            <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+            </svg>
             Esta carteira é a principal para este colecionador.
           </p>
         )}
@@ -147,7 +160,14 @@ export function WalletFormItem({ wallet, onEdit }: WalletFormItemProps) {
           <WalletForm
             defaultValues={wallet}
             onSubmit={(values) => {
-              updateMutation.mutate({ walletId: wallet.id, label: values.label, address: values.address, provider: values.provider, network: values.network, primary: values.primary })
+              updateMutation.mutate({
+                walletId: wallet.id,
+                label: values.label,
+                address: values.address,
+                provider: values.provider as WalletProvider,
+                network: values.network as NftNetwork,
+                primary: values.primary,
+              })
               setDialogOpen(false)
             }}
             onCancel={() => setDialogOpen(false)}
@@ -216,15 +236,15 @@ export function WalletForm({
     defaultValues: {
       label: defaultValues.label || 'Nova carteira',
       address: defaultValues.address || '',
-      provider: defaultValues.provider || 'metamask',
-      network: defaultValues.network || 'Ethereum',
+      provider: defaultValues.provider ?? ('metamask' as WalletProvider),
+      network: defaultValues.network ?? ('Ethereum' as NftNetwork),
       primary: defaultValues.primary ?? false,
     },
   })
 
   const provider = useWatch({ control, name: 'provider' })
 
-  const providerNetworks = PROVIDER_NETWORKS[provider as WalletProvider] ?? []
+  const providerNetworks = (PROVIDER_NETWORKS[provider as WalletProvider] ?? []) as readonly NftNetwork[]
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
@@ -299,7 +319,7 @@ export function WalletForm({
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(WALLET_PROVIDER_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
+                    <SelectItem key={value} value={value as WalletProvider}>
                       {label}
                     </SelectItem>
                   ))}
@@ -326,7 +346,7 @@ export function WalletForm({
                 </SelectTrigger>
                 <SelectContent>
                   {providerNetworks.map((network) => (
-                    <SelectItem key={network} value={network}>
+                    <SelectItem key={network} value={network as string}>
                       {network}
                     </SelectItem>
                   ))}
