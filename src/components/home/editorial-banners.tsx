@@ -38,23 +38,30 @@ export const EditorialBanners = () => (
       {BANNERS.map((banner) => (
         <article
           key={banner.title}
-          className="flex items-stretch gap-4 rounded-md bg-card p-4"
+          className="group flex items-stretch gap-4 rounded-md bg-card p-4 ring-1 ring-transparent transition-[translate,box-shadow] duration-300 ease-soft hover:ring-border/70 motion-safe:hover:-translate-y-0.5"
         >
-          <img
-            src={banner.image}
-            alt={banner.alt}
-            width={255}
-            height={247}
-            loading="lazy"
-            className={`size-[130px] shrink-0 rounded-sm object-cover ${banner.reverse ? 'order-last' : ''}`}
-          />
+          <div
+            className={`size-[130px] shrink-0 overflow-hidden rounded-sm ${banner.reverse ? 'order-last' : ''}`}
+          >
+            <img
+              src={banner.image}
+              alt={banner.alt}
+              width={255}
+              height={247}
+              loading="lazy"
+              className="size-full object-cover transition-transform duration-700 ease-soft group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            />
+          </div>
           <div className="flex flex-col justify-center gap-2">
             <h2 className="text-[0.8125rem] leading-snug font-bold uppercase">{banner.title}</h2>
             <p className="text-[0.7rem] leading-relaxed text-muted-foreground">{banner.copy}</p>
             <Button asChild variant="outline" size="xs" className="mt-1 self-start">
               <a href="#catalogo">
                 Explorar
-                <ArrowRightIcon aria-hidden />
+                <ArrowRightIcon
+                  aria-hidden
+                  className="transition-transform duration-200 ease-soft group-hover/button:translate-x-0.5"
+                />
               </a>
             </Button>
           </div>

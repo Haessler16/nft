@@ -55,15 +55,20 @@ export const JournalSection = () => (
 
     <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {POSTS.map((post) => (
-        <li key={post.title} className="flex flex-col gap-2">
-          <img
-            src={post.image}
-            alt=""
-            width={255}
-            height={180}
-            loading="lazy"
-            className="aspect-[255/180] w-full rounded-sm object-cover"
-          />
+        <li
+          key={post.title}
+          className="group flex flex-col gap-2 transition-transform duration-300 ease-soft motion-safe:hover:-translate-y-1"
+        >
+          <div className="overflow-hidden rounded-sm">
+            <img
+              src={post.image}
+              alt=""
+              width={255}
+              height={180}
+              loading="lazy"
+              className="aspect-[255/180] w-full object-cover transition-transform duration-700 ease-soft group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            />
+          </div>
           <p className="text-[0.65rem] text-muted-foreground">
             {post.date} | {post.readingTime}
           </p>

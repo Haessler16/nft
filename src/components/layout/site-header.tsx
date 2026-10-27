@@ -46,9 +46,9 @@ const ACCOUNT_LINKS = [
 const firstName = (name: string): string => name.split(' ')[0] ?? name
 
 const navLinkClass =
-  'relative py-1 text-xs text-foreground/80 transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:bg-primary after:opacity-0'
+  'relative py-1 text-xs text-foreground/80 transition-colors duration-200 hover:text-foreground after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-300 after:ease-soft after:content-[\'\'] hover:after:scale-x-100 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none'
 
-const navLinkActiveClass = 'text-primary after:opacity-100'
+const navLinkActiveClass = 'text-primary after:scale-x-100'
 
 export const SiteHeader = () => {
   const navigate = useNavigate()
@@ -66,11 +66,11 @@ export const SiteHeader = () => {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur">
+    <header className="site-header sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur">
       <div className="shell flex h-16 items-center gap-6">
         <Link
           to="/"
-          className="rounded-sm text-sm font-bold tracking-[0.3em] focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          className="rounded-sm text-sm font-bold tracking-[0.3em] transition-colors duration-200 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
         >
           KURIO
         </Link>
@@ -132,9 +132,10 @@ export const SiteHeader = () => {
               <ShoppingBagIcon aria-hidden />
               {cartCount > 0 ? (
                 <span
+                  key={cartCount}
                   aria-hidden="true"
                   data-testid="header-carrinho-badge"
-                  className="absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-4 font-bold text-primary-foreground"
+                  className="animate-pop absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-4 font-bold text-primary-foreground"
                 >
                   {cartCount}
                 </span>
@@ -276,7 +277,7 @@ export const SiteHeader = () => {
           id="busca-catalogo"
           role="search"
           onSubmit={search.submit}
-          className="shell flex items-center gap-2 pb-3"
+          className="shell flex animate-enter-fade-down items-center gap-2 pb-3"
         >
           <label htmlFor="busca-input" className="sr-only">
             Buscar NFTs por nome, coleção ou categoria

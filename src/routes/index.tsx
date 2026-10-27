@@ -17,6 +17,7 @@ import {
   type CatalogTab,
 } from '@/features/nfts/catalog-search'
 import type { NftSort } from '@/features/nfts/api/contracts'
+import { prefersReducedMotion } from '@/lib/motion'
 import { useIsMobile } from '@/lib/use-media-query'
 
 export const Route = createFileRoute('/')({
@@ -73,7 +74,10 @@ function HomeRoute() {
     const details = document.getElementById('catalogo-filtros-mobile')
     if (details instanceof HTMLDetailsElement) {
       details.open = true
-      details.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      details.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        block: 'center',
+      })
     }
   }
 

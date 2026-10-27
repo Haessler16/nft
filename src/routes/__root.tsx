@@ -4,6 +4,7 @@ import {
   Outlet,
   useRouterState,
 } from '@tanstack/react-router'
+import { useLayoutEffect, useRef } from 'react'
 
 import type { RouterContext } from '@/app/router-context'
 import { NotFoundState, RouteErrorState } from '@/components/feedback/route-states'
@@ -43,6 +44,20 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pageRef = useRef<HTMLDivElement>(null)
+
+  /*
+   * Replays the route fade on every path change *without* remounting the
+   * Outlet: remounting the subtree disturbs the auth/guard redirect flow, so we
+   * only restart the CSS animation on the stable wrapper.
+   */
+  useLayoutEffect(() => {
+    const node = pageRef.current
+    if (!node) return
+    node.classList.remove('animate-page-in')
+    void node.offsetWidth // force reflow so the animation restarts
+    node.classList.add('animate-page-in')
+  }, [pathname])
 
   /**
    * Screens with their own mobile frame (auth, home, detail, cart, checkout).
@@ -80,7 +95,10 @@ function RootLayout() {
           isHome ? 'flex-1 max-md:pb-24' : needsAccountShim ? 'flex-1 max-md:pb-10' : 'flex-1'
         }
       >
-        <Outlet />
+        {/* Soft cross-fade whenever the path changes; search/hash updates keep it mounted. */}
+        <div ref={pageRef} className="animate-page-in">
+          <Outlet />
+        </div>
       </main>
       <div className={hideFooterOnMobile ? 'hidden md:block' : undefined}>
         <SiteFooter />

@@ -31,7 +31,7 @@ export const NftGallery = ({ nft }: { nft: NftDetail }) => {
             aria-label={`Ver ${item.label.toLowerCase()} de ${nft.name}`}
             onClick={() => setActive(index)}
             className={cn(
-              'size-16 overflow-hidden rounded-sm border bg-card focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none',
+              'size-16 overflow-hidden rounded-sm border bg-card transition-[border-color,box-shadow] duration-200 ease-soft focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none',
               index === active ? 'border-primary' : 'border-border/70 hover:border-primary/50',
             )}
           >
@@ -58,7 +58,7 @@ export const NftGallery = ({ nft }: { nft: NftDetail }) => {
           fetchPriority="high"
           decoding="async"
           style={{ transform: `scale(${view?.zoom ?? 1})` }}
-          className="aspect-square w-full object-cover transition-transform duration-300 motion-reduce:transition-none"
+          className="aspect-square w-full object-cover transition-transform duration-500 ease-soft motion-reduce:transition-none"
         />
         <p className="absolute right-2 bottom-2 rounded-sm bg-background/85 px-2 py-1 text-[0.65rem] tracking-[0.14em] text-muted-foreground uppercase">
           {view?.label}

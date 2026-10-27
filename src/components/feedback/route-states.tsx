@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
  * header and navigation stay available.
  */
 export const NotFoundState = () => (
-  <section className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 px-4 py-24 sm:px-6">
+  <section className="mx-auto flex w-full max-w-2xl animate-enter-fade-up flex-col items-start gap-4 px-4 py-24 sm:px-6">
     <p className="text-sm font-medium text-muted-foreground">Erro 404</p>
     <h1 className="text-3xl font-semibold tracking-tight">Página não encontrada</h1>
     <p className="text-muted-foreground">
@@ -35,7 +35,7 @@ export const RouteErrorState = ({
 }) => (
   <section
     role="alert"
-    className="mx-auto flex w-full max-w-2xl flex-col items-start gap-4 px-4 py-24 sm:px-6"
+    className="mx-auto flex w-full max-w-2xl animate-enter-fade-up flex-col items-start gap-4 px-4 py-24 sm:px-6"
   >
     <p className="text-sm font-medium text-destructive">Algo deu errado</p>
     <h1 className="text-3xl font-semibold tracking-tight">Não foi possível carregar</h1>

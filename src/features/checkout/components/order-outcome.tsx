@@ -133,7 +133,7 @@ export const OrderOutcome = ({ orderId, scope, onNewOrder }: OrderOutcomeProps) 
             className="mt-1 size-5 shrink-0 animate-spin text-primary motion-reduce:animate-none"
           />
         ) : order.status === 'confirmed' ? (
-          <CheckCircle2Icon aria-hidden className="mt-1 size-5 shrink-0 text-primary" />
+          <CheckCircle2Icon aria-hidden className="animate-pop mt-1 size-5 shrink-0 text-primary" />
         ) : (
           <CircleAlertIcon aria-hidden className="mt-1 size-5 shrink-0 text-destructive" />
         )}

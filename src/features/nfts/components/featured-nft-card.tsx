@@ -15,7 +15,7 @@ export const FeaturedNftCard = ({ nft, className }: { nft: Nft; className?: stri
     <Link
       to="/nfts/$nftId"
       params={{ nftId: nft.id }}
-      className="mt-1 block overflow-hidden rounded-sm focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none"
+      className="group mt-1 block overflow-hidden rounded-sm focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none"
     >
       <img
         src={nft.imageUrl}
@@ -23,14 +23,14 @@ export const FeaturedNftCard = ({ nft, className }: { nft: Nft; className?: stri
         width={255}
         height={247}
         loading="lazy"
-        className="aspect-[255/247] w-full object-cover transition-transform duration-500 hover:scale-[1.03] motion-reduce:transition-none motion-reduce:hover:scale-100"
+        className="aspect-[255/247] w-full object-cover transition-transform duration-700 ease-soft group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
       />
     </Link>
 
     <Link
       to="/nfts/$nftId"
       params={{ nftId: nft.id }}
-      className="text-[0.8125rem] hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none"
+      className="text-[0.8125rem] transition-colors duration-200 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none"
     >
       {nft.name}
     </Link>

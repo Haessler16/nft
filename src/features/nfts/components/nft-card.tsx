@@ -12,7 +12,7 @@ import { formatEth } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
 const hoverActionClass =
-  'grid size-7 place-items-center rounded-full bg-background/85 text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none enabled:hover:bg-primary enabled:hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45'
+  'grid size-7 place-items-center rounded-full bg-background/85 text-foreground transition-[color,background-color,scale] duration-200 ease-soft focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:outline-none enabled:hover:bg-primary enabled:hover:text-primary-foreground enabled:motion-safe:active:scale-90 disabled:cursor-not-allowed disabled:opacity-45'
 
 interface NftCardProps {
   nft: Nft
@@ -49,8 +49,13 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
   }
 
   return (
-    <article className={cn('group/card flex flex-col gap-2', className)}>
-      <div className="relative overflow-hidden rounded-xl bg-card md:rounded-md">
+    <article
+      className={cn(
+        'group/card flex flex-col gap-2 transition-transform duration-300 ease-soft motion-safe:hover:-translate-y-1',
+        className,
+      )}
+    >
+      <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-border/40 transition-[box-shadow] duration-300 ease-soft group-hover/card:ring-primary/40 group-hover/card:shadow-[0_18px_40px_-14px_rgba(0,0,0,0.7)] md:rounded-md">
         <Link
           to="/nfts/$nftId"
           params={{ nftId: nft.id }}
@@ -64,7 +69,7 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
             height={247}
             loading="lazy"
             decoding="async"
-            className="aspect-[255/247] w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover/card:scale-100"
+            className="aspect-[255/247] w-full object-cover transition-transform duration-700 ease-soft group-hover/card:scale-[1.05] motion-reduce:transition-none motion-reduce:group-hover/card:scale-100"
           />
         </Link>
 
@@ -78,7 +83,7 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
         ) : null}
 
         {showActions ? (
-          <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 pb-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100 motion-reduce:transition-none max-md:inset-x-auto max-md:top-2 max-md:right-2 max-md:bottom-auto max-md:pb-0 max-md:opacity-100">
+          <div className="absolute inset-x-0 bottom-0 flex translate-y-2 justify-center gap-2 pb-2 opacity-0 transition-[opacity,translate] duration-300 ease-soft focus-within:translate-y-0 focus-within:opacity-100 group-hover/card:translate-y-0 group-hover/card:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-none max-md:inset-x-auto max-md:top-2 max-md:right-2 max-md:bottom-auto max-md:translate-y-0 max-md:pb-0 max-md:opacity-100">
             <button
               type="button"
               className={cn(hoverActionClass, 'max-md:hidden')}
@@ -118,8 +123,10 @@ export const NftCard = ({ nft, showActions = true, className }: NftCardProps) =>
         ) : null}
       </div>
 
-      <h3 className="text-[0.8125rem] text-foreground">{nft.name}</h3>
-      <p className="flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] font-bold text-primary">
+      <h3 className="text-[0.8125rem] text-foreground transition-colors duration-200 group-hover/card:text-primary">
+        {nft.name}
+      </h3>
+      <p className="flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] font-bold text-primary tabular-nums">
         <span>{formatEth(nft.priceEth, { maxFractionDigits: 2 })}</span>
         {nft.compareAtPriceEth ? (
           <s className="text-[0.75rem] font-normal text-muted-foreground">

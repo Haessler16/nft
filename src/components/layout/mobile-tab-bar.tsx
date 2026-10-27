@@ -11,7 +11,7 @@ import { useCartCount } from '@/features/cart/hooks'
 import { cn } from '@/lib/utils'
 
 const itemClass =
-  'flex size-11 flex-col items-center justify-center rounded-full text-muted-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none'
+  'flex size-11 flex-col items-center justify-center rounded-full text-muted-foreground transition-[color,background-color,scale] duration-200 ease-soft motion-safe:active:scale-90 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none'
 
 /**
  * App-style bottom navigation from the "Início" mobile frame. It replaces the
@@ -54,11 +54,14 @@ export const MobileTabBar = () => {
               ? `Carrinho, ${cartCount} ${cartCount === 1 ? 'item' : 'itens'}`
               : 'Carrinho'
           }
-          className="absolute -top-6 left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full border-4 border-[#1b120d] bg-primary text-primary-foreground shadow-[0_10px_30px_rgba(0,0,0,0.35)] focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          className="absolute -top-6 left-1/2 grid size-14 -translate-x-1/2 place-items-center rounded-full border-4 border-[#1b120d] bg-primary text-primary-foreground shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-soft motion-safe:active:scale-95 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
         >
           <ShoppingBagIcon aria-hidden className="size-6" />
           {cartCount > 0 ? (
-            <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-background px-1 text-[10px] leading-5 font-bold text-primary">
+            <span
+              key={cartCount}
+              className="animate-pop absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-background px-1 text-[10px] leading-5 font-bold text-primary"
+            >
               {cartCount}
             </span>
           ) : null}

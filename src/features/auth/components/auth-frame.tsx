@@ -31,7 +31,7 @@ export const AuthFrame = ({
 }: AuthFrameProps) => {
   const tabClass = (isActive: boolean) =>
     cn(
-      'rounded-sm px-1 py-1 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none',
+      'rounded-sm px-1 py-1 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none',
       isActive
         ? 'text-primary underline underline-offset-8'
         : 'text-muted-foreground hover:text-foreground',
@@ -73,7 +73,7 @@ export const AuthFrame = ({
         </Link>
       </nav>
 
-      <div className="mt-8 rounded-md border border-border/70 bg-card p-6 sm:p-8 max-md:mt-0 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0">
+      <div className="mt-8 animate-enter-fade-up rounded-md border border-border/70 bg-card p-6 sm:p-8 max-md:mt-0 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0">
         <h1 className="text-display text-2xl max-md:font-sans max-md:text-[1.4rem] max-md:font-bold max-md:normal-case max-md:tracking-normal max-md:text-center">
           {title}
         </h1>

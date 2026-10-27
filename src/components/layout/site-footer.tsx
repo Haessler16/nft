@@ -34,7 +34,7 @@ const HELP_LINKS = [
   'Denunciar item',
 ]
 
-const linkClass = 'text-xs text-foreground/70 transition-colors hover:text-primary'
+const linkClass = 'link-underline text-xs text-foreground/70 transition-colors hover:text-primary'
 
 /** Non-interactive entries: out of scope, so they can't pretend to work. */
 const DisabledLink = ({ label }: { label: string }) => (

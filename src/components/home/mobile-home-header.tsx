@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 
 import { Input } from '@/components/ui/input'
 import { useCatalogSearch } from '@/features/nfts/hooks'
+import { prefersReducedMotion } from '@/lib/motion'
 
 interface MobileHomeHeaderProps {
   onOpenFilters: () => void
@@ -19,7 +20,10 @@ export const MobileHomeHeader = ({ onOpenFilters }: MobileHomeHeaderProps) => {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     search.submit(event)
     window.setTimeout(() => {
-      document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('catalogo')?.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        block: 'start',
+      })
     }, 50)
   }
 
@@ -41,7 +45,7 @@ export const MobileHomeHeader = ({ onOpenFilters }: MobileHomeHeaderProps) => {
           type="button"
           aria-label="Buscar NFTs"
           onClick={() => document.getElementById('busca-mobile')?.focus()}
-          className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-200 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
         >
           <SearchIcon aria-hidden className="size-4" />
         </button>
@@ -59,7 +63,7 @@ export const MobileHomeHeader = ({ onOpenFilters }: MobileHomeHeaderProps) => {
         <button
           type="submit"
           aria-label="Buscar"
-          className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary transition-[background-color,scale] duration-200 ease-soft motion-safe:active:scale-90 hover:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
         >
           <ArrowRightIcon aria-hidden className="size-4" />
         </button>
@@ -68,7 +72,7 @@ export const MobileHomeHeader = ({ onOpenFilters }: MobileHomeHeaderProps) => {
           type="button"
           aria-label="Abrir filtros do catálogo"
           onClick={onOpenFilters}
-          className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary transition-[background-color,scale] duration-200 ease-soft motion-safe:active:scale-90 hover:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
         >
           <SlidersHorizontalIcon aria-hidden className="size-5" />
         </button>

@@ -46,7 +46,7 @@ export const CartLine = ({
   return (
     <li
       data-testid={`carrinho-linha-${item.nftId}`}
-      className="flex gap-3 rounded-xl bg-card p-3 md:gap-4 md:rounded-md md:border md:p-4"
+      className="animate-enter-fade-in flex gap-3 rounded-xl bg-card p-3 md:gap-4 md:rounded-md md:border md:p-4"
     >
       <img
         src={item.imageUrl}

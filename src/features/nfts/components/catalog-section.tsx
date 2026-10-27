@@ -155,8 +155,12 @@ export const CatalogSection = ({
             </div>
           ) : (
             <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-8">
-              {items.map((nft) => (
-                <li key={nft.id}>
+              {items.map((nft, index) => (
+                <li
+                  key={nft.id}
+                  className="animate-enter-fade-in"
+                  style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
+                >
                   <NftCard nft={nft} />
                 </li>
               ))}
